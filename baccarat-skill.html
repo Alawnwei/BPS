@@ -1,0 +1,4008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Alan|Baccarat实战系统 v1.0</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  padding: 10px;
+  min-height: 100vh;
+}
+
+/* ===== 顶部 ===== */
+.header {
+  background: linear-gradient(135deg, #16213e, #0f3460);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.header h1 {
+  font-size: 18px;
+  color: #e94560;
+  font-weight: bold;
+}
+.header .stats {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+.header .stats span {
+  background: rgba(255,255,255,0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.header .stats .num { color: #4ecca3; font-weight: bold; }
+.header .stats .num.red { color: #e94560; }
+
+/* ===== 主布局 ===== */
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .container { grid-template-columns: 1fr; }
+}
+
+/* ===== 面板通用 ===== */
+.panel {
+  background: #16213e;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #4ecca3;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.panel-title .badge {
+  font-size: 11px;
+  background: rgba(233,69,96,0.2);
+  color: #e94560;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* ===== 大路棋盘 ===== */
+.road-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 60px;
+  padding: 8px;
+  background: #0d1b2a;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  align-content: flex-start;
+}
+.road-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.road-cell.B {
+  background: #e94560;
+  color: #fff;
+  box-shadow: 0 0 6px rgba(233,69,96,0.3);
+}
+.road-cell.P {
+  background: #4ecca3;
+  color: #fff;
+  box-shadow: 0 0 6px rgba(78,204,163,0.3);
+}
+.road-cell.T {
+  background: #ffd93d;
+  color: #333;
+}
+.road-cell.empty {
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.08);
+}
+.road-cell:hover { transform: scale(1.15); z-index: 2; }
+.road-cell.new-anim {
+  animation: popIn 0.25s ease;
+}
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== 控制按钮 ===== */
+.controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  touch-action: manipulation;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(0.96); }
+.btn-b { background: #e94560; color: #fff; }
+.btn-p { background: #4ecca3; color: #fff; }
+.btn-t { background: #ffd93d; color: #333; }
+.btn-undo { background: #533483; color: #fff; }
+.btn-clear { background: #2d2d44; color: #aaa; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* ===== 策略建议 ===== */
+.strategy-section {
+  margin-top: 8px;
+}
+.strategy-card {
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-left: 3px solid #4ecca3;
+}
+.strategy-card.signal-high { border-left-color: #e94560; }
+.strategy-card.signal-mid { border-left-color: #ffd93d; }
+.strategy-card.signal-low { border-left-color: #4ecca3; }
+.strategy-card .label {
+  font-size: 12px;
+  color: #888;
+}
+.strategy-card .title {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 2px 0;
+}
+.strategy-card .title.attack { color: #e94560; }
+.strategy-card .title.defense { color: #ffd93d; }
+.strategy-card .title.flat { color: #4ecca3; }
+.strategy-card .desc {
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.5;
+}
+.strategy-card .action {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.strategy-card .action.bet-b { background: rgba(233,69,96,0.2); color: #e94560; }
+.strategy-card .action.bet-p { background: rgba(78,204,163,0.2); color: #4ecca3; }
+.strategy-card .action.bet-pass { background: rgba(255,255,255,0.1); color: #888; }
+.strategy-card .confidence {
+  float: right;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.strategy-card .confidence.high { background: rgba(78,204,163,0.2); color: #4ecca3; }
+.strategy-card .confidence.mid { background: rgba(255,217,61,0.2); color: #ffd93d; }
+.strategy-card .confidence.low { background: rgba(233,69,96,0.2); color: #e94560; }
+
+/* ===== 注码管理 ===== */
+.bankroll-box {
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+.bankroll-box .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.bankroll-box .row:last-child { margin-bottom: 0; }
+.bankroll-box .row label { font-size: 11px; color: #888; }
+.bankroll-box .row .val { font-size: 13px; font-weight: bold; }
+.bankroll-box .row .val.green { color: #4ecca3; }
+.bankroll-box .row .val.red { color: #e94560; }
+.bankroll-box input {
+  background: #0d1b2a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #fff;
+  width: 70px;
+  text-align: right;
+  font-size: 12px;
+}
+
+/* ===== 战绩统计 ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  margin-top: 4px;
+}
+.stat-item {
+  background: rgba(255,255,255,0.03);
+  border-radius: 4px;
+  padding: 4px 2px;
+  text-align: center;
+}
+.stat-item .stat-num { font-size: 15px; font-weight: bold; }
+.stat-item .stat-label { font-size: 10px; color: #888; margin-top: 1px; }
+
+/* ===== 策略速查 ===== */
+.ref-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+@media (max-width: 480px) {
+  .ref-grid { grid-template-columns: 1fr; }
+}
+.ref-item {
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.ref-item:hover { border-color: rgba(78,204,163,0.3); }
+.ref-item .ref-name { font-size: 12px; font-weight: bold; }
+.ref-item .ref-desc { font-size: 11px; color: #888; margin-top: 2px; line-height: 1.4; }
+.ref-item .ref-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+}
+.ref-item .ref-tag.t-neg { background: rgba(233,69,96,0.2); color: #e94560; }
+.ref-item .ref-tag.t-atk { background: rgba(78,204,163,0.2); color: #4ecca3; }
+.ref-item .ref-tag.t-pos { background: rgba(255,217,61,0.2); color: #ffd93d; }
+
+/* ===== 状态指示 ===== */
+.status-bar {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.status-item { display: flex; align-items: center; gap: 4px; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+}
+.status-dot.green { background: #4ecca3; }
+.status-dot.red { background: #e94560; }
+.status-dot.yellow { background: #ffd93d; }
+
+/* ===== 滚动美化 ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+/* ===== 弹窗 ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.modal-box h2 { font-size: 16px; color: #4ecca3; margin-bottom: 10px; }
+.modal-box p { font-size: 13px; line-height: 1.6; color: #aaa; margin-bottom: 6px; }
+.modal-close {
+  float: right;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* ===== 设置面板 ===== */
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 12px;
+}
+.setting-row label { color: #ccc; }
+.setting-row select, .setting-row input[type="number"] {
+  background: #0d1b2a;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  color: #fff;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.setting-row select option { background: #16213e; }
+
+/* ===== 复盘表格 ===== */
+.review-table td {
+  padding: 3px 6px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部 ===== -->
+<div class="header">
+  <h1>🃏 Alan|Baccarat实战系统 v2.0</h1>
+  <div class="stats">
+    <span>本金: <span class="num" id="hdBankroll">10000</span></span>
+    <span>盈利: <span class="num" id="hdProfit">0</span></span>
+    <span>局数: <span class="num" id="hdRounds">0</span></span>
+  </div>
+  <div style="display:flex;gap:4px;margin-top:4px;width:100%;">
+    <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="openSettings()">⚙️ 设置</button>
+    <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="openReview()">📊 复盘</button>
+    <button class="btn btn-sm" style="background:#2d2d44;color:#ffd93d;" onclick="if(confirm('结束当前会话并保存？'))endSession(true)">📥 结束保存</button>
+    <span style="flex:1;"></span>
+    <span id="headerTimer" style="font-size:11px;color:#888;align-self:center;"></span>
+  </div>
+</div>
+
+<!-- ===== 主布局 ===== -->
+
+<!-- 游戏提醒条（止损/止盈/时间/锁定） -->
+<div id="alertBar" style="display:none;max-width:1200px;margin:0 auto 6px;">
+  <div style="background:rgba(233,69,96,0.12);border:1px solid rgba(233,69,96,0.25);border-radius:8px;padding:6px 14px;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:16px;" id="alertIcon">⚠️</span>
+    <span style="font-size:13px;color:#e0e0e0;flex:1;" id="alertText"></span>
+    <button id="alertActionBtn" style="display:none;background:#533483;border:none;border-radius:4px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer;" onclick="unlockSystem(true)">🔓 解锁</button>
+    <span onclick="dismissAlert()" style="cursor:pointer;font-size:16px;color:#888;padding:0 4px;">✕</span>
+  </div>
+</div>
+
+<!-- 大路记录（全幅置顶） -->
+<div style="max-width:1200px;margin:0 auto 12px;">
+  <div class="panel">
+    <div class="panel-title">
+      📊 大路记录
+      <span class="badge" id="roadCount">0 手</span>
+    </div>
+    <div class="road-board" id="roadBoard"></div>
+    <div class="controls">
+      <button class="btn btn-b" onclick="addResult('B')">👑 庄 (B)</button>
+      <button class="btn btn-p" onclick="addResult('P')">👤 闲 (P)</button>
+      <button class="btn btn-t" onclick="addResult('T')">🤝 和 (T)</button>
+      <button class="btn btn-undo btn-sm" onclick="undoResult()">↩ 撤销</button>
+      <button class="btn btn-clear btn-sm" onclick="clearRoad()">✕ 清空</button>
+      <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="selectCustomStrategy()" id="btnCustomStrategy">🎯 自定义</button>
+    </div>
+    <!-- 状态信息 -->
+    <div class="status-bar" id="statusBar">
+      <span class="status-item"><span class="status-dot green"></span> 等待开局...</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 左列 -->
+  <div>
+
+    <!-- 实时下注建议 -->
+    <div class="panel" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid rgba(233,69,96,0.3);border-radius:12px;">
+      <div class="panel-title" style="color:#e94560;font-size:16px;border-bottom:1px solid rgba(233,69,96,0.15);padding-bottom:8px;">
+        🚀 实时下注建议
+        <span class="badge" style="background:rgba(233,69,96,0.2);color:#e94560;font-size:12px;" id="betAdviceLabel">等待信号</span>
+      </div>
+      <div id="betAdvicePanel" style="text-align:center;padding:6px 0 4px;min-height:56px;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:18px;font-weight:bold;color:#888;" id="betAdviceAction">—</div>
+        <div style="font-size:12px;color:#aaa;margin-top:2px;" id="betAdviceReason">输入本金并记录路单后自动生成</div>
+        <div style="font-size:11px;color:#666;margin-top:2px;" id="betAdviceStrategy"></div>
+      </div>
+    </div>
+
+    <!-- 战绩面板 -->
+    <div class="panel">
+      <div class="panel-title">📈 实时统计</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-num" style="color:#e94560" id="statB">0</div>
+          <div class="stat-label">庄 (B)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#4ecca3" id="statP">0</div>
+          <div class="stat-label">闲 (P)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#ffd93d" id="statT">0</div>
+          <div class="stat-label">和 (T)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#4ecca3" id="statBPct">0%</div>
+          <div class="stat-label">庄比例</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:#e94560" id="statPPct">0%</div>
+          <div class="stat-label">闲比例</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="statStreak">0</div>
+          <div class="stat-label">当前连</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 注码管理 -->
+    <div class="panel">
+      <div class="panel-title">💰 注码管理 <span class="badge">四级赔率制</span></div>
+      <div class="bankroll-box">
+        <div class="row">
+          <label>初始本金</label>
+          <input type="number" id="inputInitCapital" value="10000" onchange="updateInitCapital()">
+        </div>
+        <div class="row">
+          <label>当前资金</label>
+          <input type="number" id="inputCapital" style="color:#4ecca3;font-weight:bold;font-size:13px;width:70px;" value="10000" onchange="updateCurrentCapital()">
+        </div>
+        <div class="row">
+          <label>累计盈亏</label>
+          <span class="val" id="displayPL">0</span>
+        </div>
+        <div class="row" id="tierRow1">
+          <label>🥇 平推 (3%)</label>
+          <span style="color:#4ecca3;font-weight:bold;font-size:13px" id="displayBet1">300</span>
+        </div>
+        <div class="row" id="tierRow2">
+          <label>🥈 中赔率 (5%)</label>
+          <span style="color:#ffd93d;font-weight:bold;font-size:13px" id="displayBet2">500</span>
+        </div>
+        <div class="row" id="tierRow3">
+          <label>🥉 高赔率 (8%)</label>
+          <span style="color:#e94560;font-weight:bold;font-size:13px" id="displayBet3">800</span>
+        </div>
+        <div class="row" id="tierRow4">
+          <label>💎 极高赔率 (12%)</label>
+          <span style="color:#ff6b9d;font-weight:bold;font-size:13px" id="displayBet4">1,200</span>
+        </div>
+      </div>
+      <div id="commissionDisplay" style="font-size:10px;color:#666;line-height:1.5;margin-top:4px;">
+        📊 记录路单后自动计算抽水与返水
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 右列 -->
+  <div>
+
+    <!-- 策略建议 -->
+    <div class="panel">
+      <div class="panel-title">
+        🎯 策略建议
+        <span class="badge" id="suggestionCount">等待数据</span>
+      </div>
+      <div class="strategy-section" id="strategySection">
+        <div class="strategy-card" style="border-left-color:#888;">
+          <div class="label">系统提示</div>
+          <div class="desc">记录路单后自动分析模式并给出建议</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 策略速查 -->
+    <div class="panel">
+      <div class="panel-title">
+        📖 策略速查手册
+        <span class="badge" style="cursor:pointer" onclick="toggleRef()">展开 ▼</span>
+      </div>
+      <div class="ref-grid" id="refGrid">
+        <div class="ref-item" onclick="showDetail('jump_dragon')">
+          <div class="ref-name">🏃 单跳长龙不过3</div>
+          <div class="ref-desc">6+单跳断后反打，命中率最高</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('long_dragon')">
+          <div class="ref-name">🐉 长龙回头不过3</div>
+          <div class="ref-desc">6+龙断后打反向不过3</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('single_jump')">
+          <div class="ref-name">⚡ 王者单跳</div>
+          <div class="ref-desc">最高概率，无路可打时首选</div>
+          <span class="ref-tag t-pos">平推</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('counter_pattern')">
+          <div class="ref-name">🎯 反规律打法</div>
+          <div class="ref-desc">4+4以上重注必中</div>
+          <span class="ref-tag t-atk">重注</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('triple_one')">
+          <div class="ref-name">🔢 三一式打法</div>
+          <div class="ref-desc">3+1信号打反向两枪</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('fourteen')">
+          <div class="ref-name">🔺 一四式三角形</div>
+          <div class="ref-desc">1+2→1+3→1+4逐级打斷</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('small_triangle')">
+          <div class="ref-name">🔻 小三打法</div>
+          <div class="ref-desc">单跳路上赌它断</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('sawtooth')">
+          <div class="ref-name">⚙️ 锯齿型打法</div>
+          <div class="ref-desc">一房两厅连续3个后断裂打三枪</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('parabola')">
+          <div class="ref-name">📈 抛物线打法</div>
+          <div class="ref-desc">宏观反向不过4</div>
+          <span class="ref-tag t-pos">宏观</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('golden_finger')">
+          <div class="ref-name">🖐️ 金手指打法</div>
+          <div class="ref-desc">5连下拉路打出什么打什么</div>
+          <span class="ref-tag t-atk">胜进</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('m_shape')">
+          <div class="ref-name">📐 M型打法</div>
+          <div class="ref-desc">两长一短打反跳</div>
+          <span class="ref-tag t-neg">负追</span>
+        </div>
+        <div class="ref-item" onclick="showDetail('invade_dragon')">
+          <div class="ref-name">⚔️ 入侵追龙式</div>
+          <div class="ref-desc">胜进1+2+3，以小博大</div>
+          <span class="ref-tag t-atk">胜进</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== 弹窗 ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-box" id="modalBox">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 id="modalTitle">详情</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 数据模型
+// ============================================================
+
+// 默认设置
+const DEFAULT_SETTINGS = {
+  timeLimit: 0,            // 分钟，0=不限制
+  warningTime: 5,          // 提前提醒分钟
+  breakInterval: 0,        // 每N分钟提醒休息，0=不提醒
+  breakDuration: 10,       // 休息分钟数
+  stopLossPct: 20,         // 亏损%触发硬止损
+  stopLossSoftPct: 10,     // 亏损%触发软提醒
+  takeProfitPct: 20,       // 盈利%触发止盈
+  takeProfitSoftPct: 10,   // 盈利%触发软提醒
+  hardLimitLock: true,     // 达到硬限制后锁定下注
+  dailyLossLimit: 0,       // 日亏损上限，0=不限制
+  rebateRate: 0.008        // 返水比例，默认0.8%
+};
+
+// 默认每日统计
+function defaultDailyStats() {
+  return {
+    date: new Date().toISOString().slice(0,10),
+    totalPL: 0,
+    sessionsCount: 0
+  };
+}
+
+let state = {};
+
+// 初始化状态（从LocalStorage加载或使用默认值）
+function initState() {
+  const saved = loadState();
+  if (saved && saved.road !== undefined) {
+    state = saved;
+    // 兼容旧版本：补充缺失的字段
+    state.sessionLog = state.sessionLog || [];
+    state.settings = Object.assign({}, DEFAULT_SETTINGS, state.settings || {});
+    state.completedSessions = state.completedSessions || [];
+    state.dailyStats = state.dailyStats || defaultDailyStats();
+    state.locked = state.locked || false;
+    state.lockReason = state.lockReason || null;
+    state.lockUntil = state.lockUntil || null;
+    state.coolDownUntil = state.coolDownUntil || null;
+    state.sessionStats = state.sessionStats || {
+      roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
+    };
+    state.alertsCleared = state.alertsCleared || false;
+    state.sessionStart = state.sessionStart || Date.now();
+    state.strategyRecentResults = state.strategyRecentResults || {};
+    state.strategyEnabled = state.strategyEnabled || {};
+    state.customStrategies = state.customStrategies || [];
+    state.chaseState = state.chaseState || null;
+    state.chaseStats = state.chaseStats || {};
+  } else {
+    state = {
+      road: [],
+      capital: 10000,
+      initCapital: 10000,
+      strategyFailures: {},
+      sessionStart: Date.now(),
+      alertsCleared: false,
+      sessionLog: [],
+      settings: Object.assign({}, DEFAULT_SETTINGS),
+      completedSessions: [],
+      dailyStats: defaultDailyStats(),
+      locked: false,
+      lockReason: null,
+      lockUntil: null,
+      coolDownUntil: null,
+      sessionStats: {
+        roundsPlayed: 0,
+        roundsWon: 0,
+        roundsLost: 0,
+        roundsTied: 0,
+        profitLoss: 0,
+        strategyStats: {}
+      },
+      strategyRecentResults: {},
+      strategyEnabled: {},
+      customStrategies: [],
+      chaseState: null,
+      chaseStats: {}
+    };
+  }
+  // 每日统计日期检查
+  const today = new Date().toISOString().slice(0,10);
+  if (state.dailyStats.date !== today) {
+    state.dailyStats = defaultDailyStats();
+  }
+}
+
+// --- LocalStorage 持久化 ---
+function saveState() {
+  try {
+    const toSave = JSON.parse(JSON.stringify(state));
+    localStorage.setItem('baccarat_state', JSON.stringify(toSave));
+  } catch(e) {
+    console.warn('保存状态失败:', e);
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('baccarat_state');
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) {
+    console.warn('加载状态失败:', e);
+    return null;
+  }
+}
+
+function clearSavedState() {
+  localStorage.removeItem('baccarat_state');
+  state.sessionStart = Date.now();
+  state.alertsCleared = false;
+}
+
+// ============================================================
+// 策略详情库
+// ============================================================
+const STRATEGIES = {
+  long_dragon: {
+    name: '🐉 长龙回头不过3',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '当出现6连以上长龙（庄或闲）断掉后，赌反方向不会形成新的3连以上。',
+    rules: [
+      '6-7连龙 → 赌反方向不过3',
+      '8连以上龙 → 赌反方向不过4',
+      '5连及以下 → 不建议使用',
+      '最多负追3枪（或4枪）'
+    ],
+    condition: '6+B/P断后出现反向1个',
+    bet: '打长龙的反方向',
+    confidence: '高',
+    note: '⚠️ 注意：双联龙慎用；中路位置＞后位＞前位；庄闲比例悬殊时降低注码'
+  },
+  single_jump: {
+    name: '⚡ 王者单跳',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '单跳（庄闲交替）是百家乐最高概率形态，高于长庄长闲。',
+    rules: [
+      '3-4连跳可入手打单跳',
+      '无路可打时首选单跳',
+      '庄闲比例均衡时效果好'
+    ],
+    condition: '出现3+连跳',
+    bet: '顺着单跳方向打',
+    confidence: '高',
+    note: '💡 单跳概率高于任何其他形态'
+  },
+  counter_pattern: {
+    name: '🎯 反规律打法',
+    type: '重注',
+    typeClass: 't-atk',
+    desc: '当出现4庄+4闲（或5+5、6+6等）对称规律后，赌它不会继续形成相同规律。这是重注、回血利器！',
+    rules: [
+      '4+4是起点，3+3不能入手',
+      '胜率：4+4 < 5+5 < 6+6 < 7+7（越高越准）',
+      '命中后可用"穿透性打法"补刀',
+      '注码随倍数递增（4+4加50%，8+8加200%）'
+    ],
+    condition: '4+4 或更高',
+    bet: '打规律的反方向（一枪）',
+    confidence: '高',
+    note: '💣 反规律+穿透性打法配合使用效果更佳'
+  },
+  triple_one: {
+    name: '🔢 三一式打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '看到3庄+1闲或3闲+1庄的独立信号后，打反向两枪。烂路克星！',
+    rules: [
+      '3+1为独立信号 → 打反方向',
+      '负追两枪，两枪不中放弃',
+      '命中后可接"小梯形打法"'
+    ],
+    condition: '3B+1P 或 3P+1B',
+    bet: '打反向，负追2枪',
+    confidence: '中-高',
+    note: '🚫 避开金手指、双联龙、33重叠的前路'
+  },
+  fourteen: {
+    name: '🔺 一四式三角形打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '一房带两厅信号（1+2）延展到1+4，逐步赌它断。',
+    rules: [
+      '1+2打它斷 → 1+3打它斷 → 1+4打它斷',
+      '最多4步，4步不中放弃',
+      '命中率：1+2 > 1+3 > 1+4'
+    ],
+    condition: '1B+2P 或 1P+2B',
+    bet: '打另一方向，逐级负追',
+    confidence: '中-高',
+    note: '⚠️ 庄闲悬殊或一方热门频繁出龙时慎用'
+  },
+  invade_dragon: {
+    name: '⚔️ 入侵追龙式打法',
+    type: '胜进',
+    typeClass: 't-atk',
+    desc: '以单跳长连作为火力输出点，采用胜进1+2+3注码法。以小博大！',
+    rules: [
+      '单跳入手击中 → 断了打顺（防守）',
+      '顺断打反跳（防守2）',
+      '1个进攻位 + 2个防守位'
+    ],
+    condition: '单跳长连出现',
+    bet: '胜进1+2+3，以守为攻',
+    confidence: '中',
+    note: '💡 激进型打法，适合敢冲的玩家'
+  },
+  small_triangle: {
+    name: '🔻 小三打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '在单跳路上赌单跳会断。从第4个跳开始切入，负追3把。',
+    rules: [
+      'BPB → 打B赌不跳',
+      'BPBP → 打P赌不跳',
+      '反之亦然，负追3枪',
+      '配合"单跳长龙不过3"做防守'
+    ],
+    condition: '单跳3-4个后',
+    bet: '赌单跳断，打反方向',
+    confidence: '中-高',
+    note: '🚫 平整好路（单跳长龙）慎用；选烂路效果更佳'
+  },
+  jump_dragon: {
+    name: '🏃 单跳长龙不过3',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '单跳长龙（6+连跳）断后转长连，立即打它断。这是长龙回头系列中命中率最高的！',
+    rules: [
+      '最低6连跳才能入手',
+      '5连跳建议不过2（负追2把）',
+      '单跳越长，命中率越高'
+    ],
+    condition: '6+连跳后断了出长连',
+    bet: '打长连的反方向，负追3枪',
+    confidence: '极高',
+    note: '🏆 本书命中率最高的打法！死穴是单跳断后出真正长龙'
+  },
+  parabola: {
+    name: '📈 抛物线宏观打法',
+    type: '宏观',
+    typeClass: 't-pos',
+    desc: '以6-7龙为起点，打反向不过4。配合长龙回头系列使用。',
+    rules: [
+      '选择6龙最佳作为低点起点',
+      '全程打反向不过4',
+      '第三手注意减少注码（防M型入口）'
+    ],
+    condition: '6-7龙断后',
+    bet: '反向不过4',
+    confidence: '中',
+    note: '🚫 避免抛物线前端有金手指、双联龙'
+  },
+  m_shape: {
+    name: '📐 M型打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '两长一短形成M字型，打反跳，负追2把。',
+    rules: [
+      '两长需3-4以上，一短建议2连',
+      '胜率：313 < 323 < 424 < 525 < 626',
+      '两长相等 > 两长不等'
+    ],
+    condition: '两长+一短形成M型',
+    bet: '打M型后的反跳',
+    confidence: '中',
+    note: '前路下拉太高要注意防金手指变异'
+  },
+  golden_finger: {
+    name: '🖐️ 金手指打法',
+    type: '胜进',
+    typeClass: 't-atk',
+    desc: '像手指一样的5连下拉路，出什么打什么。',
+    rules: [
+      '前方有2-3条下拉路产生即可使用',
+      '小手指危险（保守注码）',
+      '大金手指可胜进加码'
+    ],
+    condition: '2-3条下拉路',
+    bet: '出什么打什么',
+    confidence: '中',
+    note: '🚫 金手指一旦出现单跳迹象立刻取消'
+  },
+  sawtooth: {
+    name: '⚙️ 锯齿型打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '一房带两厅连续3个形成锯齿后断裂，打三枪。',
+    rules: [
+      '信号：1+2+1+2+1+3',
+      '三枪范围，第1-2枪命中率高',
+      '锯齿越长命中率越高'
+    ],
+    condition: '一房两厅×3后断裂',
+    bet: '打锯齿延伸的反方向',
+    confidence: '中-高',
+    note: '可配合一四式打法最后一把加重注'
+  },
+  // ===== 新增策略 =====
+  cut_dragon: {
+    name: '⚔️ 斩龙/三断长龙',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '在长龙特定位置反向博断，利用概率集中点短期内不会再次集中的原理。最多3枪，位置决定信心。',
+    rules: [
+      '前位龙：7-9连时入手，3枪',
+      '中位龙：6-8连时入手，3枪',
+      '后位龙：7-9连时入手，3枪',
+      '双联龙可斩但注意反规律路'
+    ],
+    condition: '长龙6-9连时',
+    bet: '打长龙反方向，负追3枪',
+    confidence: '中-高',
+    note: '中位龙命中率 > 后位龙 > 前位龙。庄闲比例悬殊时降注码'
+  },
+  large_triangle: {
+    name: '📐 大三打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '当路形成3+1+2+1+1的三角形结构后，赌三角形尾部不会继续延伸。胶水公式，可联动其他策略。',
+    rules: [
+      '标准大三：3+1+2+1+1 → 打反跳',
+      '反向大三：1+1+2+2+3 → 打3的反向',
+      '负追2枪，第二枪为"补刀"'
+    ],
+    condition: '3+1+2+1+1 或 1+1+2+2+3',
+    bet: '打三角形尾部的反方向',
+    confidence: '中',
+    note: '与排排连冲突时优先排排连；与三一式重叠时可加重注'
+  },
+  cross_combo: {
+    name: '🔄 交叉性组合打法',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '4+1信号出现后的多步联动。先打反向2枪→不中则顺着打一手→击中则进入反规律范围。',
+    rules: [
+      '4+1信号 → 打反向，负追2枪',
+      '2枪不中形成4+3 → 顺着打一手',
+      '击中形成4+4 → 进入反规律打法',
+      '4+3后不中形成4+3+1 → 进入三一式打法'
+    ],
+    condition: '4B+1P或4P+1B',
+    bet: '先打反向2枪，再顺打',
+    confidence: '中-高',
+    note: '前路有龙或金手指时降注码；4+4反规律不稳定，勿加重注'
+  },
+  double_jump_snipe: {
+    name: '🎯 双跳狙击型',
+    type: '负追',
+    typeClass: 't-neg',
+    desc: '双跳（BBPP）延伸至3连时狙击，赌它不会继续形成长龙。与三打法、反规律重叠时可加注。',
+    rules: [
+      '信号：2+2+3（BBPPBBB或PPBBPPP）',
+      '2+2+2+3或2+2+2+2+3同样有效',
+      '打延伸方向的反向，负追3枪'
+    ],
+    condition: '2+2+3双跳延伸',
+    bet: '打延伸方向的反向，负追3枪',
+    confidence: '中',
+    note: '与三打法重叠时加重注；与反规律重叠时二选一'
+  },
+  dragon_predict: {
+    name: '🔮 预测长龙',
+    type: '胜进',
+    typeClass: 't-atk',
+    desc: '长龙成对出现规律：第一条龙出现后，第二条龙出现的概率增加。从第4位开始试探性追击。',
+    rules: [
+      '第一条6+龙出现后关注第二条',
+      '从第4位开始轻注试探',
+      '两条龙之间距离越近第二条越短',
+      '金手指或双联龙时无效'
+    ],
+    condition: '已有6+长龙出现',
+    bet: '从第4位开始胜进试探',
+    confidence: '中',
+    note: '第二条龙通常比第一条短。龙回头系列失败后此策略无效'
+  }
+};
+
+// ============================================================
+// 核心分析引擎
+// ============================================================
+function analyze() {
+  const r = state.road;
+  if (r.length < 3) {
+    return { suggestions: [], betAdvice: null, signals: [] };
+  }
+
+  const signals = [];
+  let suggestions = [];
+
+  // --- 基础统计 ---
+  const bCount = r.filter(x => x === 'B').length;
+  const pCount = r.filter(x => x === 'P').length;
+  const tCount = r.filter(x => x === 'T').length;
+  const bPct = bCount + pCount > 0 ? (bCount / (bCount + pCount) * 100) : 50;
+  const pPct = bCount + pCount > 0 ? (pCount / (bCount + pCount) * 100) : 50;
+
+  // --- 获取最后N个非T结果（去掉和） ---
+  const nr = r.filter(x => x !== 'T');
+  const last = nr[nr.length - 1] || null;
+  const last5 = nr.slice(-5);
+  const last10 = nr.slice(-10);
+
+  // --- 检测双联龙（两条6+长龙出现在整条路中） ---
+  // 书中：双联龙产生即为 8庄+7闲+1庄，两条不相等的长龙
+  // 影响：长龙回头不过3慎用、三一式避开、抛物线避开
+  const hasDoubleDragon = (function() {
+    if (nr.length < 12) return false;
+    let dc = 0, sl = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) { sl++; }
+      else { if (sl >= 6) dc++; sl = 1; }
+    }
+    if (sl >= 6) dc++;
+    return dc >= 2;
+  })();
+
+  // --- 检测金手指形态（3+交替下拉路形成手指状） ---
+  // 书中：前方有2-3条下拉路产生即可使用金手指打法
+  // 特征：交替列、长度为2+（非单跳）、一般持续4-5条下拉
+  // 影响：三一式避开、抛物线避开、出现单跳迹象立刻取消
+  const goldenFinger = (function() {
+    if (nr.length < 6) return null;
+    // 获取连续长度数组
+    const streaks = [];
+    let cnt = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) cnt++;
+      else { streaks.push({ type: nr[i-1], len: cnt }); cnt = 1; }
+    }
+    streaks.push({ type: nr[nr.length-1], len: cnt });
+    if (streaks.length < 3) return null;
+    // 取最近最多5个streaks
+    const recent = streaks.slice(-Math.min(5, streaks.length));
+    // 必须交替（B/P/B/P...）
+    for (let i = 1; i < recent.length; i++) {
+      if (recent[i].type === recent[i-1].type) return null;
+    }
+    // 金手指要求列长度≥2（出现长度1=单跳迹象→取消）
+    if (recent.some(s => s.len < 2)) return null;
+    // 达到3+交替列即判定为金手指
+    const maxLen = Math.max(...recent.map(s => s.len));
+    return {
+      isGoldenFinger: true,
+      size: maxLen >= 4 ? 'big' : 'small',
+      count: recent.length,
+      maxLen: maxLen
+    };
+  })();
+  const hasGoldenFinger = goldenFinger !== null;
+  // 金手指信号（用于显示/其他策略参考）
+  if (hasGoldenFinger) {
+    signals.push({
+      type: 'golden_finger',
+      size: goldenFinger.size,
+      count: goldenFinger.count,
+      maxLen: goldenFinger.maxLen
+    });
+  }
+
+  // --- 1. 检测长龙（当前活跃连） ---
+  if (nr.length >= 6) {
+    let streak = 1;
+    let streakType = nr[nr.length - 1];
+    for (let i = nr.length - 2; i >= 0; i--) {
+      if (nr[i] === streakType) streak++;
+      else break;
+    }
+    if (streak >= 4) {
+      signals.push({ type: 'dragon', subtype: streakType, length: streak });
+    }
+  }
+
+  // --- 1b. 检测已断的长龙（长龙回头信号） ---
+  // 当有一段6+的长龙被反方向截断时触发
+  if (nr.length >= 7) {
+    let currStreak = 1;
+    let currType = nr[nr.length - 1];
+    for (let i = nr.length - 2; i >= 0; i--) {
+      if (nr[i] === currType) currStreak++;
+      else break;
+    }
+    // 检查当前连之前是否有一段6+的长龙
+    const prevStartIdx = nr.length - 1 - currStreak;
+    if (prevStartIdx > 0) {
+      let prevStreak = 1;
+      let prevType = nr[prevStartIdx];
+      for (let i = prevStartIdx - 1; i >= 0; i--) {
+        if (nr[i] === prevType) prevStreak++;
+        else break;
+      }
+      if (prevStreak >= 6 && currType !== prevType) {
+        signals.push({
+          type: 'broken_dragon',
+          subtype: prevType,       // 原长龙的方向
+          length: prevStreak,       // 原长龙的连数
+          breakType: currType,      // 打断的方向
+          breakLength: currStreak   // 打断后的长度
+        });
+      }
+    }
+  }
+
+  // --- 2. 检测单跳 ---
+  let jumpCount = 0;
+  for (let i = nr.length - 1; i >= 1; i--) {
+    if (nr[i] !== nr[i - 1]) jumpCount++;
+    else break;
+  }
+  if (jumpCount >= 3) {
+    signals.push({ type: 'jump', length: jumpCount });
+  }
+
+  // --- 3. 检测一房带两厅 (1+2) ---
+  // 真正的1+2如庄闲闲(BPP)，庄是独立的一房，不是长龙尾巴
+  if (nr.length >= 3) {
+    const a = nr[nr.length - 3];
+    const b = nr[nr.length - 2];
+    const c = nr[nr.length - 1];
+    // a !== b (房≠厅), b === c (两厅相同)
+    // 且a之前(如有)不能也是a，确保"一房"是独立的而非长龙尾巴
+    if (a !== b && b === c && (nr.length < 4 || nr[nr.length - 4] !== a)) {
+      signals.push({ type: 'one_room_two_halls', first: a, pair: b, count: 2 });
+    }
+    if (nr.length >= 4) {
+      const d = nr[nr.length - 4];
+      if (d !== a && a === b && b !== c) {
+        // 已形成一房带两厅后断了
+        signals.push({ type: 'one_room_break', first: d, pair: a });
+      }
+    }
+  }
+
+  // --- 4. 检测31式信号（3+1独立信号） ---
+  // 书中强调"独立"3连，非长龙尾巴
+  // 书中也强调：33重叠、双联龙、金手指时禁用三一式
+  let has33 = false; // 提升作用域，后续小梯形等检测也需要
+  if (nr.length >= 4) {
+    const a = nr[nr.length - 4], b = nr[nr.length - 3], c = nr[nr.length - 2], d = nr[nr.length - 1];
+    // 3+1: BBB P 或 PPP B，且a之前(如有)不能也是a（确保独立）
+    if (a === b && b === c && c !== d && (nr.length < 5 || nr[nr.length - 5] !== a)) {
+      // 检查整条路是否出现过33格局（连续两个3连）
+      // 书中原文："注意避开33重叠的前路"
+      if (nr.length >= 6) {
+        let sl = 1, prevSl = 0;
+        for (let i = 1; i < nr.length; i++) {
+          if (nr[i] === nr[i-1]) { sl++; }
+          else {
+            if (prevSl === 3 && sl === 3) { has33 = true; break; }
+            prevSl = sl; sl = 1;
+          }
+        }
+        // 处理最后一对（33在结尾的情况）
+        if (!has33 && prevSl === 3 && sl === 3) has33 = true;
+      }
+      // 双联龙 + 金手指检查（书中原文：三一式避开双联龙、金手指）
+      if (!has33 && !hasDoubleDragon && !hasGoldenFinger) {
+        signals.push({ type: 'triple_one', streak: a, opposite: d });
+      }
+    }
+  }
+
+  // --- 5. 检测反规律 (4+4, 5+5 etc.) ---
+  // 书中原意：4+4是干净对称的独立规律块，非长龙尾巴截取
+  // 需检查是否first块前面还有更多相同结果（长龙尾巴）
+  for (let len = 8; len >= 4; len--) {
+    if (nr.length >= len * 2) {
+      const first = nr.slice(nr.length - len * 2, nr.length - len);
+      const second = nr.slice(nr.length - len);
+      if (first.every(x => x === first[0]) && second.every(x => x === second[0]) && first[0] !== second[0]) {
+        // 检查first块是否为长龙尾巴（前面还有相同的结果）
+        const beforeIdx = nr.length - len * 2 - 1;
+        const isDragonTail = beforeIdx >= 0 && nr[beforeIdx] === first[0];
+        // 统计长龙尾巴的额外长度
+        let tailExtra = 0;
+        if (isDragonTail) {
+          for (let i = beforeIdx; i >= 0; i--) {
+            if (nr[i] === first[0]) tailExtra++;
+            else break;
+          }
+        }
+        // 统计庄闲比例（书中强调比例对反规律命中率影响大）
+        const totalBP = bCount + pCount;
+        const ratioNote = (bCount > 0 && pCount > 0)
+          ? (bCount / pCount > 1.5 || pCount / bCount > 1.5 ? '比例悬殊' : '比例均衡')
+          : '比例正常';
+        // 穿透性打法检测：反规律失败后再次形成相同规律
+        // 书中：反规律失败→形成X+X+X+X → 穿透性命中率更高
+        const cpFailCount = state.strategyFailures['反规律打法'] || 0;
+        const isPenetration = cpFailCount > 0;
+        // 计算穿透性健康指数（A>B>C）
+        // 看first块前方连续几个second方向的结果
+        let healthBefore = 0;
+        if (beforeIdx >= 0 && nr[beforeIdx] === second[0]) {
+          for (let i = beforeIdx; i >= 0; i--) {
+            if (nr[i] === second[0]) healthBefore++;
+            else break;
+          }
+        }
+        const penHealth = healthBefore <= 1 ? 'A' : (healthBefore <= 2 ? 'B' : 'C');
+        signals.push({
+          type: 'counter_pattern',
+          length: len,
+          first: first[0],
+          second: second[0],
+          isDragonTail: isDragonTail,
+          tailExtra: tailExtra,
+          ratioNote: ratioNote,
+          isPenetration: isPenetration,
+          penHealth: penHealth
+        });
+        break; // 取最高的
+      }
+    }
+  }
+
+  // --- 6. 检测排排连 (2+2) ---
+  if (nr.length >= 5) {
+    const a = nr[nr.length - 5], b = nr[nr.length - 4], c = nr[nr.length - 3], d = nr[nr.length - 2], e = nr[nr.length - 1];
+    // 确保第一个2块是干净对子而非长龙尾巴（a之前不能也是a）
+    if (a === b && c === d && b !== c && e !== d && (nr.length < 6 || nr[nr.length - 6] !== a)) {
+      signals.push({ type: 'pai_pai_lian', start: a, pair2: c, last: e });
+    }
+  }
+
+  // --- 7. 检测122信号 ---
+  if (nr.length >= 5) {
+    const a = nr[nr.length - 5], b = nr[nr.length - 4], c = nr[nr.length - 3], d = nr[nr.length - 2], e = nr[nr.length - 1];
+    if (a !== b && b === c && c !== d && d === e) {
+      signals.push({ type: 'one_two_two', a, b, c, d, e });
+    }
+  }
+
+  // --- 8. 检测单跳长龙断了 ---
+  // 从尾部先找连（确认打断），再往前数连跳长度
+  // 书中：最低6连跳（6个交替元素）断了转长连 → 打长连的反方向
+  let streakLen = 1;
+  const streakType = nr[nr.length - 1];
+  for (let i = nr.length - 2; i >= 0; i--) {
+    if (nr[i] === streakType) streakLen++;
+    else break;
+  }
+  if (streakLen >= 2) {
+    const breakStart = nr.length - streakLen; // 打断的第一手
+    if (breakStart >= 1) {
+      let altCount = 1; // 从打断第一手往前数交替元素
+      for (let i = breakStart; i >= 1; i--) {
+        if (nr[i] !== nr[i - 1]) altCount++;
+        else break;
+      }
+      if (altCount >= 6) {
+        signals.push({
+          type: 'jump_dragon_break',
+          jumpLength: altCount,
+          streakType: streakType
+        });
+      }
+    }
+  }
+
+  // --- 9. 检测小梯形打法（三一式命中后的后续） ---
+  // 书中：小梯形是建立在31式击中之后！31式未击中(33)则不能使用
+  // 打法：选反两枪，中则收手，未中则放弃
+  if (nr.length >= 3 && state.strategyFailures['三一式打法'] === 0 && !has33 && !hasDoubleDragon && !hasGoldenFinger) {
+    const a = nr[nr.length - 3], b = nr[nr.length - 2], c = nr[nr.length - 1];
+    // 1+2 pattern: 一房带两厅 可作为小梯形切入点
+    if (a !== b && b === c && (nr.length < 4 || nr[nr.length - 4] !== a)) {
+      signals.push({ type: 'little_trapezoid', first: a, pair: b, mode: 'one_room_two_halls' });
+    } else if (nr.length >= 4) {
+      const d = nr[nr.length - 4];
+      if (d !== a && a === b && b !== c) {
+        // 1+2已断 pattern: 小梯形关注后续
+        signals.push({ type: 'little_trapezoid', first: d, pair: a, mode: 'broken_follow' });
+      }
+    }
+  }
+
+  // --- 10. 检测斩龙信号（活跃长龙特定位置） ---
+  // 书中：前位7-9、中位6-8、后位7-9连龙时入手博断
+  if (nr.length >= 6) {
+    let streak = 1;
+    let streakType = nr[nr.length - 1];
+    for (let i = nr.length - 2; i >= 0; i--) {
+      if (nr[i] === streakType) streak++;
+      else break;
+    }
+    // 当前活跃长龙在6-9连之间
+    if (streak >= 6 && streak <= 9) {
+      // 判断位置：前1/3、中1/3、后1/3
+      const position = nr.length / 3;
+      const currentIdx = nr.length - 1;
+      let positionType = '后位';
+      if (currentIdx < position) positionType = '前位';
+      else if (currentIdx < position * 2) positionType = '中位';
+      // 根据位置调整信心
+      const posConfMap = { '前位': '中', '中位': '中-高', '后位': '中' };
+      signals.push({
+        type: 'cut_dragon',
+        subtype: streakType,
+        length: streak,
+        position: positionType,
+        confidence: posConfMap[positionType] || '中'
+      });
+    }
+  }
+
+  // --- 11. 检测大三打法 ---
+  // 标准大三：3+1+2+1+1 结构 或 反向大三：1+1+2+2+3
+  if (nr.length >= 7) {
+    const streaks = [];
+    let cnt = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) cnt++;
+      else { streaks.push(cnt); cnt = 1; }
+    }
+    streaks.push(cnt);
+    const recent = streaks.slice(-6);
+    // 标准大三: [3, 1, 2, 1, 1, ...]
+    if (recent.length >= 5 && recent[recent.length-5] >= 3 && recent[recent.length-4] === 1 &&
+        recent[recent.length-3] === 2 && recent[recent.length-2] === 1 && recent[recent.length-1] === 1) {
+      const lastType = nr[nr.length - 1];
+      signals.push({ type: 'large_triangle', mode: 'standard', opposite: lastType === 'B' ? 'P' : 'B' });
+    }
+    // 反向大三: [1, 1, 2, 2, 3, ...]
+    if (recent.length >= 5 && recent[recent.length-5] === 1 && recent[recent.length-4] === 1 &&
+        recent[recent.length-3] === 2 && recent[recent.length-2] === 2 && recent[recent.length-1] >= 3) {
+      const lastType = nr[nr.length - 1];
+      signals.push({ type: 'large_triangle', mode: 'reverse', opposite: lastType === 'B' ? 'P' : 'B' });
+    }
+  }
+
+  // --- 12. 检测交叉性组合（4+1信号） ---
+  if (nr.length >= 5) {
+    const a = nr[nr.length - 5], b = nr[nr.length - 4], c = nr[nr.length - 3], d = nr[nr.length - 2], e = nr[nr.length - 1];
+    // 4+1: BBBB P 或 PPPP B（4连+1个反向）
+    const first4 = nr.slice(nr.length - 5, nr.length - 1);
+    if (first4.every(x => x === first4[0]) && first4[0] !== e) {
+      // 检查是否长龙尾巴
+      const beforeIdx = nr.length - 6;
+      const isDragonTail = beforeIdx >= 0 && nr[beforeIdx] === first4[0];
+      // 判断是否4+3+1（已进入三一式范围）
+      var isAlreadyTriple = false;
+      if (nr.length >= 8) {
+        const a2 = nr[nr.length - 8], b2 = nr[nr.length - 7], c2 = nr[nr.length - 6];
+        if (a2 === b2 && b2 === c2 && c2 !== first4[0]) isAlreadyTriple = true;
+      }
+      signals.push({
+        type: 'cross_combo',
+        firstType: first4[0],
+        breakType: e,
+        isDragonTail: isDragonTail,
+        isAlreadyTriple: isAlreadyTriple,
+        confidence: isDragonTail ? '中' : '中-高'
+      });
+    }
+  }
+
+  // --- 13. 检测双跳狙击（2+2+3） ---
+  if (nr.length >= 6) {
+    // 计算最近连的长度
+    const streaks = [];
+    let cnt = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) cnt++;
+      else { streaks.push({ type: nr[i-1], len: cnt }); cnt = 1; }
+    }
+    streaks.push({ type: nr[nr.length-1], len: cnt });
+    const recent = streaks.slice(-5);
+    // 需要至少3个streaks，形成2+2+3或更长
+    if (recent.length >= 3) {
+      const last3 = recent.slice(-3);
+      // 检测双跳延伸：两边长度相等（2和2）中间不同，第三段延伸到3+
+      if (last3[0].type !== last3[1].type && last3[1].type !== last3[2].type &&
+          last3[0].len >= 2 && last3[1].len >= 2 && last3[2].len >= 3 &&
+          Math.abs(last3[0].len - last3[1].len) <= 1) {
+        signals.push({
+          type: 'double_jump_snipe',
+          extendType: last3[2].type,
+          extendLen: last3[2].len,
+          opposite: last3[2].type === 'B' ? 'P' : 'B'
+        });
+      }
+    }
+  }
+
+  // --- 14. 检测预测长龙信号 ---
+  // 书中：第一条6+龙出现后，第二条龙出现的概率增加
+  if (nr.length >= 12) {
+    let dragonCount = 0;
+    let maxDragonLen = 0;
+    let sl = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) sl++;
+      else { if (sl >= 6) { dragonCount++; maxDragonLen = Math.max(maxDragonLen, sl); } sl = 1; }
+    }
+    if (sl >= 6) { dragonCount++; maxDragonLen = Math.max(maxDragonLen, sl); }
+    // 已有1条6+龙，且当前没有活跃龙，且非双联龙/金手指
+    if (dragonCount === 1 && !hasDoubleDragon && !hasGoldenFinger) {
+      // 从第4位开始（第一条龙结束后第4手）
+      const lastDragonEnd = (function() {
+        let ls = 1;
+        for (let i = nr.length - 2; i >= 0; i--) {
+          if (nr[i] === nr[i+1]) ls++;
+          else break;
+        }
+        return nr.length - ls;
+      })();
+      const handsSinceDragon = nr.length - lastDragonEnd;
+      if (handsSinceDragon >= 4 && handsSinceDragon <= 8) {
+        signals.push({
+          type: 'dragon_predict',
+          pastDragonLen: maxDragonLen,
+          handsSince: handsSinceDragon
+        });
+      }
+    }
+  }
+
+  // --- 15. 检测长龙回头龙尾跳 ---
+  // 书中：长龙回头命中后打找龙尾，龙尾命中后打龙尾跳
+  // 这里检测已经完成了"长龙回头"和"找龙尾"可能的形态
+  if (nr.length >= 10 && !hasDoubleDragon) {
+    const streaks = [];
+    let cnt = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) cnt++;
+      else { streaks.push({ type: nr[i-1], len: cnt }); cnt = 1; }
+    }
+    streaks.push({ type: nr[nr.length-1], len: cnt });
+    // 需要至少4个streaks来检测龙回头→找龙尾→龙尾跳的链条
+    if (streaks.length >= 4) {
+      const last4 = streaks.slice(-4);
+      // 可能的龙尾跳形态：长streak + 短streak + 短streak + 短streak（交替）
+      // 如：7B + 1P + 2B + 1P（龙尾跳信号）
+      if (last4[0].len >= 6 && last4[1].len <= 2 && last4[2].len <= 3 && last4[3].len === 1 &&
+          last4[0].type !== last4[1].type && last4[1].type === last4[2].type && last4[2].type !== last4[3].type &&
+          last4[0].type === last4[3].type) {
+        signals.push({
+          type: 'dragon_tail_jump',
+          dragonLen: last4[0].len,
+          tailLen: last4[2].len,
+          opposite: last4[3].type === 'B' ? 'P' : 'B'
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // 生成策略建议
+  // ============================================================
+
+  for (const sig of signals) {
+    switch (sig.type) {
+      case 'dragon':
+        if (sig.length >= 6) {
+          // 判断龙是否还在持续（活跃状态）
+          const isActive = nr[nr.length - 1] === sig.subtype;
+          if (isActive) {
+            // 长龙还在持续 → 不出"已断"建议，改为预警提示
+            suggestions.push({
+              title: '🐉 ' + sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '长龙中',
+              desc: '⚠️ ' + sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '长龙持续中！切勿猜顶反向入场。\n等待断开后再参考"长龙回头不过3"策略。',
+              action: sig.subtype,
+              actionLabel: '⏳ 观望等待',
+              confidence: '低',
+              strategy: '长龙观望',
+              type: '观望'
+            });
+          } else {
+            // 长龙已断 → 生成长龙回头不过N建议（打原始长龙方向，赌打断方不会继续连）
+            const opposite = sig.subtype;
+            const maxGun = sig.length >= 8 ? 4 : 3;
+            // 负追上限检查：打断方当前连数已超过"不过N"则停止建议
+            let breakLen = 1;
+            const bt = nr[nr.length - 1];
+            for (let i = nr.length - 2; i >= 0; i--) {
+              if (nr[i] === bt) breakLen++;
+              else break;
+            }
+            if (breakLen > maxGun) break;
+            const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
+            const failCount = state.strategyFailures['长龙回头不过3'] || 0;
+            const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
+            const confBase = hasDoubleDragon ? '中' : '高';
+            const confMap = { 0: confBase, 1: '中', 2: '低', 3: '极低' };
+            const fConf = confMap[failCount > 3 ? 3 : failCount] || '低';
+            suggestions.push({
+              title: '🐉 长龙回头不过' + maxGun + hasDD + failNote,
+              desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断 → 打' + (opposite === 'B' ? '庄' : '闲') + '，赌不过' + maxGun + (hasDoubleDragon ? '（双联龙慎用）' : '') + (failCount > 0 ? '（最近已失败' + failCount + '次，谨慎）' : ''),
+              action: opposite,
+              actionLabel: '下注' + (opposite === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
+              confidence: fConf,
+              strategy: '长龙回头不过3',
+              type: '负追'
+            });
+          }
+        }
+        break;
+
+      case 'broken_dragon':
+        // 6+长龙已断 → 赌原始长龙方向（打断方不会继续连）不过N
+        if (sig.length >= 6) {
+          const bdOpp = sig.subtype; // 原始长龙方向
+          const bdMaxGun = sig.length >= 8 ? 4 : 3;
+          // 负追上限检查：打断方当前连数已超过"不过N"则停止建议
+          if (sig.breakLength > bdMaxGun) break;
+          const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
+          const failCount = state.strategyFailures['长龙回头不过3'] || 0;
+          const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
+          const confBase = hasDoubleDragon ? '中' : '高';
+          const confMap = { 0: confBase, 1: '中', 2: '低', 3: '极低' };
+          const fConf = confMap[failCount > 3 ? 3 : failCount] || '低';
+          suggestions.push({
+            title: '🐉 长龙回头不过' + bdMaxGun + hasDD + failNote,
+            desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '→' + (sig.breakType === 'B' ? '庄' : '闲') + '已断，打' + (bdOpp === 'B' ? '庄' : '闲') + '赌不过' + bdMaxGun + '（当前打断' + sig.breakLength + '连）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '最近已失败' + failCount + '次' : ''),
+            action: bdOpp,
+            actionLabel: '下注' + (bdOpp === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
+            confidence: fConf,
+            strategy: '长龙回头不过3',
+            type: '负追'
+          });
+        }
+        break;
+
+      case 'jump':
+        if (sig.length >= 3) {
+          const nextBet = nr[nr.length - 1] === 'B' ? 'P' : 'B';
+          const conf = sig.length >= 6 ? '高' : (sig.length >= 4 ? '中' : '低');
+          suggestions.push({
+            title: '⚡ 单跳追击',
+            desc: sig.length + '连跳中 → 打' + (nextBet === 'B' ? '庄' : '闲') + '延续单跳',
+            action: nextBet,
+            actionLabel: '下注' + (nextBet === 'B' ? '👑庄' : '👤闲'),
+            confidence: conf,
+            strategy: '王者单跳',
+            type: '平推'
+          });
+        }
+        break;
+
+      case 'triple_one':
+        // 书中原文：BBB+P → 打庄，PPP+B → 打闲（打原始3连方向，对抗打断方）
+        const opp = sig.streak;
+        suggestions.push({
+          title: '🔢 三一式打法',
+          desc: '3' + (sig.streak === 'B' ? '庄' : '闲') + '+1' + (sig.opposite === 'B' ? '庄' : '闲') + ' → 打' + (opp === 'B' ? '庄' : '闲') + '，负追两枪',
+          action: opp,
+          actionLabel: '下注' + (opp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '高',
+          strategy: '三一式打法',
+          type: '负追'
+        });
+        break;
+
+      case 'counter_pattern':
+        const cpOpp = sig.first === 'B' ? 'P' : 'B';
+        // 失败追踪
+        const cpFail = state.strategyFailures['反规律打法'] || 0;
+        const cpFailNote = cpFail > 0 ? ' ⚠️已失败' + cpFail + '次' : '';
+        // 书中原意：纯反规律命中率 4+4<5+5<6+6<7+7
+        // 但龙尾反规律 + 比例悬殊时大幅降低可信度
+        let cpConf = sig.length >= 6 ? '极高' : (sig.length >= 5 ? '中-高' : '中');
+        let cpDesc, cpLabel, cpNote;
+        if (sig.isDragonTail) {
+          // 龙尾截取的伪4+4——书中强调避开此类：前方成龙时反规律可靠性骤降
+          const tailDesc = sig.first === 'B' ? '庄' : '闲';
+          cpConf = sig.length >= 7 ? '中' : (sig.length >= 5 ? '低' : '极低');
+          cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
+            + ' ⚠️ 含' + (sig.tailExtra + sig.length) + '连' + tailDesc + '长龙尾，非纯正4+4'
+            + (sig.ratioNote === '比例悬殊' ? '，且' + sig.ratioNote + '建议观望或极小注试探' : '，降低注码谨慎出手');
+          cpLabel = '⚡小注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
+          cpNote = '长龙尾反规律（书中：成龙后不宜重注反规律，先观察1-2手）';
+        } else if (sig.ratioNote === '比例悬殊') {
+          cpConf = sig.length >= 7 ? '高' : (sig.length >= 5 ? '中' : '低');
+          cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
+            + ' ⚠️ 庄闲比例悬殊，降低注码至50%';
+          cpLabel = '⚠️半注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
+          cpNote = '比例悬殊影响反规律命中率（书中第10章强调）';
+        } else {
+          cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
+            + ' → 打' + (cpOpp === 'B' ? '庄' : '闲') + '一枪必中';
+          cpLabel = '🔥重注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
+          cpNote = '反规律+穿透性打法配合使用效果更佳';
+        }
+        // 失败后降信心
+        const cpFailMap = { 0: cpConf, 1: '中', 2: '低', 3: '极低' };
+        let adjConf = cpFailMap[cpFail > 3 ? 3 : cpFail] || cpConf;
+        // 穿透性打法：反规律失败后再次形成相同规律→命中率更高（书中独立章节）
+        // 健康指数：A（1+X+X+1）> B（2+X+X+2）> C（3+X+X+3+）
+        const penLabel = sig.isPenetration ? ' 🔁穿透' : '';
+        const penHealthLabel = sig.isPenetration ? ' [健康' + sig.penHealth + ']' : '';
+        const boostMap = { '极低': '低', '低': '中', '中': '高', '高': '极高', '极高': '极高' };
+        if (sig.isPenetration) {
+          adjConf = boostMap[adjConf] || adjConf; // 穿透性升一级
+          if (sig.penHealth === 'A') adjConf = boostMap[adjConf] || adjConf; // A等再升一级
+        }
+        const cpAdjNote = (sig.isPenetration ? '穿透性打法-破防概率：反规律失败后规律延续，健康' + sig.penHealth + '，命中率更高' : '')
+          || (cpFail > 0 ? cpNote + '（⚠️最近已失败' + cpFail + '次，降注谨慎）' : cpNote);
+        suggestions.push({
+          title: '🎯 反规律打法 (' + sig.length + '+' + sig.length + ')' + (sig.isDragonTail ? ' ⚠️龙尾版' : '') + penLabel + penHealthLabel + cpFailNote,
+          desc: (sig.isPenetration ? '🔁 穿透性反规律：规律延续，健康' + sig.penHealth + '，命中率↑ ' : '') + cpDesc + (cpFail > 0 && !sig.isPenetration ? '（最近已失败' + cpFail + '次）' : ''),
+          action: cpOpp,
+          actionLabel: sig.isPenetration ? '💥穿透' + (cpOpp === 'B' ? '👑庄' : '👤闲') : cpLabel,
+          confidence: adjConf,
+          strategy: '反规律打法',
+          type: '重注',
+          note: cpAdjNote
+        });
+        break;
+
+      case 'little_trapezoid': {
+        const ltOpp = sig.pair === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '📐 小梯形打法（三一式后手）',
+          desc: '三一式命中后出现' + (sig.first === 'B' ? '庄' : '闲') + '+' + (sig.pair === 'B' ? '庄庄' : '闲闲')
+            + ' → 打' + (ltOpp === 'B' ? '庄' : '闲') + '，负追两枪'
+            + (sig.mode === 'broken_follow' ? '（关注后续小梯形入口）' : ''),
+          action: ltOpp,
+          actionLabel: '下注' + (ltOpp === 'B' ? '👑庄' : '👤闲') + ' 负追2枪',
+          confidence: '中-高',
+          strategy: '一四式三角形',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'one_room_two_halls': {
+        const orOpp = sig.pair === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🔺 一房带两厅信号',
+          desc: '出现' + (sig.first === 'B' ? '庄' : '闲') + '+' + (sig.pair === 'B' ? '庄庄' : '闲闲') + ' → 关注一四式打法',
+          action: orOpp,
+          actionLabel: '下注' + (orOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中',
+          strategy: '一四式三角形',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'jump_dragon_break': {
+        // 负追三枪：当前连长度超过4(1断+3枪)则停止建议
+        let streakLen = 1;
+        const lastT = nr[nr.length - 1];
+        for (let i = nr.length - 2; i >= 0; i--) {
+          if (nr[i] === lastT) streakLen++;
+          else break;
+        }
+        if (streakLen > 4) break; // 超出负追三枪上限
+
+        const jdOpp = sig.streakType === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🏃 单跳长龙不过3',
+          desc: sig.jumpLength + '连跳断了转' + (sig.streakType === 'B' ? '庄' : '闲') + ' → 打' + (jdOpp === 'B' ? '庄' : '闲') + '，负追3枪',
+          action: jdOpp,
+          actionLabel: '下注' + (jdOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '极高',
+          strategy: '单跳长龙不过3',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'golden_finger': {
+        const gfOpp = nr[nr.length - 1] === 'B' ? 'P' : 'B';
+        const gfConf = sig.size === 'big' ? '低' : '低';
+        suggestions.push({
+          title: '🖐️ ' + (sig.size === 'big' ? '大' : '小') + '金手指（' + sig.count + '条下拉）',
+          desc: '形成' + sig.count + '条交替下拉路，出什么打什么' + (sig.size === 'big' ? '（大金手指可胜进）' : '（小金手指保守注码）'),
+          action: gfOpp,
+          actionLabel: sig.size === 'big' ? '🔥胜进' + (gfOpp === 'B' ? '👑庄' : '👤闲') : '⚡小注' + (gfOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: gfConf,
+          strategy: '金手指打法',
+          type: '胜进'
+        });
+        break;
+      }
+
+      case 'pai_pai_lian': {
+        const ppOpp = sig.pair2 === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🔲 排排连高端玩法',
+          desc: '形成' + (sig.start === 'B' ? '庄' : '闲') + (sig.start === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + ' → 关注122或排排连',
+          action: ppOpp,
+          actionLabel: '下注' + (ppOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中',
+          strategy: '排排连高端玩法',
+          type: '负追'
+        });
+        break;
+      }
+
+      // ===== 新策略 =====
+      case 'cut_dragon': {
+        const cdOpp = sig.subtype === 'B' ? 'P' : 'B';
+        const cdPos = sig.position;
+        const cdConf = sig.confidence;
+        const cdFail = state.strategyFailures['斩龙/三断长龙'] || 0;
+        const cdFailNote = cdFail > 0 ? '⚠️已失败' + cdFail + '次' : '';
+        suggestions.push({
+          title: '⚔️ 斩龙 ' + sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '（' + cdPos + '）' + cdFailNote,
+          desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + cdPos + '，博断打' + (cdOpp === 'B' ? '庄' : '闲') + '，负追3枪',
+          action: cdOpp,
+          actionLabel: '⚔️斩龙 ' + (cdOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: cdConf,
+          strategy: '斩龙/三断长龙',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'large_triangle': {
+        const ltOpp = sig.opposite;
+        const ltLabel = sig.mode === 'standard' ? '标准大三' : '反向大三';
+        suggestions.push({
+          title: '📐 ' + ltLabel,
+          desc: ltLabel + '形成 → 打' + (ltOpp === 'B' ? '庄' : '闲') + '反跳，负追2枪',
+          action: ltOpp,
+          actionLabel: '📐 ' + (ltOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中',
+          strategy: '大三打法',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'cross_combo': {
+        const ccOpp = sig.firstType === 'B' ? 'P' : 'B';
+        const ccConf = sig.isDragonTail ? '中' : '中-高';
+        const ccNote = sig.isDragonTail ? '含长龙尾，降低注码' : (sig.isAlreadyTriple ? '已接近三一式范围' : '');
+        suggestions.push({
+          title: '🔄 交叉性组合 ' + sig.firstType + sig.firstType + sig.firstType + sig.firstType + '+' + sig.breakType,
+          desc: '4+1信号 → 打' + (ccOpp === 'B' ? '庄' : '闲') + '反向2枪' + (ccNote ? '（' + ccNote + '）' : ''),
+          action: ccOpp,
+          actionLabel: '🔄' + (ccOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: ccConf,
+          strategy: '交叉性组合打法',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'double_jump_snipe': {
+        const djOpp = sig.opposite;
+        const djLen = sig.extendLen;
+        suggestions.push({
+          title: '🎯 双跳狙击 ' + sig.extendType + '×' + djLen,
+          desc: '双跳延伸至' + djLen + '连 → 打' + (djOpp === 'B' ? '庄' : '闲') + '，负追3枪',
+          action: djOpp,
+          actionLabel: '🎯' + (djOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中',
+          strategy: '双跳狙击型',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'dragon_predict': {
+        const dpDir = nr[nr.length - 1] === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🔮 预测第二条龙（第' + sig.handsSince + '手）',
+          desc: '前有' + sig.pastDragonLen + '连龙，从第4位开始轻注追第二条龙 → 打' + (dpDir === 'B' ? '庄' : '闲'),
+          action: dpDir,
+          actionLabel: '🔮轻注' + (dpDir === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中',
+          strategy: '预测长龙',
+          type: '胜进'
+        });
+        break;
+      }
+
+      case 'dragon_tail_jump': {
+        const dtjOpp = sig.opposite;
+        suggestions.push({
+          title: '🦎 长龙回头龙尾跳',
+          desc: sig.dragonLen + '连龙回头→找龙尾→龙尾跳信号，打' + (dtjOpp === 'B' ? '庄' : '闲') + '反跳，不过3',
+          action: dtjOpp,
+          actionLabel: '🦎' + (dtjOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '中-高',
+          strategy: '长龙回头龙尾跳',
+          type: '负追'
+        });
+        break;
+      }
+    }
+  }
+
+  // 如果没有高信心的策略，推荐单跳或平推
+  if (suggestions.length === 0) {
+    const last3 = last5.slice(-3);
+    if (last3.length === 3 && last3[0] !== last3[1] && last3[1] !== last3[2]) {
+      const nextBet = last3[2] === 'B' ? 'P' : 'B';
+      suggestions.push({
+        title: '⚡ 单跳追击（默认）',
+        desc: '无特殊信号，推荐打单跳',
+        action: nextBet,
+        actionLabel: '下注' + (nextBet === 'B' ? '👑庄' : '👤闲'),
+        confidence: '低',
+        strategy: '王者单跳',
+        type: '平推'
+      });
+    } else if (nr.length >= 2) {
+      // 推荐打闲（书中核心思想：多打闲避抽水）
+      suggestions.push({
+        title: '👤 平推闲（推荐）',
+        desc: '无明确信号，按书中核心思想平推闲',
+        action: 'P',
+        actionLabel: '下注👤闲',
+        confidence: '低',
+        strategy: '不输为赢',
+        type: '平推'
+      });
+    }
+  }
+
+  // 信心优先级映射（全局）
+  const priority = { '极高': 0, '高': 1, '中-高': 2, '中': 3, '低': 4, '极低': 5 };
+
+  // --- 策略互斥消解：当多个建议方向冲突时，按规则保留最优 ---
+  // 禁止同一局同时推荐相反的押注方向（庄 vs 闲）
+  if (suggestions.length >= 2) {
+    const dirs = [...new Set(suggestions.map(s => s.action))].filter(d => d === 'B' || d === 'P');
+    if (dirs.length >= 2) {
+      // 策略级优先级（同信心时按此排序）
+      const sp = {
+        '单跳长龙不过3': 0, '长龙回头不过3': 1, '反规律打法': 2,
+        '一四式三角形': 3, '三一式打法': 4, '排排连高端玩法': 5,
+        '金手指打法': 6, '王者单跳': 7, '长龙观望': 8, '不输为赢': 9,
+        '斩龙/三断长龙': 2, '长龙回头龙尾跳': 3, '交叉性组合打法': 4, '大三打法': 5,
+        '双跳狙击型': 6, '预测长龙': 8
+      };
+      // 每方向仅保留最佳一条
+      const best = {};
+      for (const s of suggestions) {
+        if (s.action !== 'B' && s.action !== 'P') continue;
+        const k = s.action;
+        if (!best[k] ||
+            (priority[s.confidence] || 9) < (priority[best[k].confidence] || 9) ||
+            ((priority[s.confidence] || 9) === (priority[best[k].confidence] || 9) &&
+             (sp[s.strategy] || 99) < (sp[best[k].strategy] || 99))) {
+          best[k] = s;
+        }
+      }
+      // 对比两个方向 → 保留更高优先级的方向，剔除另一方向全部建议
+      const dirList = Object.keys(best);
+      if (dirList.length >= 2) {
+        dirList.sort((a, b) => {
+          const da = priority[best[a].confidence] || 9;
+          const db = priority[best[b].confidence] || 9;
+          if (da !== db) return da - db;
+          return (sp[best[a].strategy] || 99) - (sp[best[b].strategy] || 99);
+        });
+        const winnerDir = dirList[0];
+        suggestions = suggestions.filter(s =>
+          s.action === winnerDir || (s.action !== 'B' && s.action !== 'P')
+        );
+      }
+    }
+  }
+
+  // 按优先级排序
+  suggestions.sort((a, b) => (priority[a.confidence] || 9) - (priority[b.confidence] || 9));
+
+  // 过滤已禁用的策略
+  suggestions = suggestions.filter(function(s) {
+    return state.strategyEnabled[s.strategy] !== false;
+  });
+
+  // --- 负追续追覆盖：如果当前有活跃负追，覆盖推荐 ---
+  if (state.chaseState && state.chaseState.gunsUsed < state.chaseState.maxGuns) {
+    var chaseNextGun = state.chaseState.gunsUsed + 1;
+    var chaseLabel = '负追第' + chaseNextGun + '枪/' + state.chaseState.maxGuns;
+    // 构建负追推荐（优先级最高）
+    var chaseSuggestion = {
+      title: '🎯 ' + state.chaseState.strategy + ' ' + chaseLabel,
+      desc: '负追续追中，继续打' + (state.chaseState.direction === 'B' ? '庄' : '闲') + '，第' + chaseNextGun + '枪',
+      action: state.chaseState.direction,
+      actionLabel: '🔥' + chaseLabel + ' ' + (state.chaseState.direction === 'B' ? '👑庄' : '👤闲'),
+      confidence: chaseNextGun <= 2 ? '高' : '中',
+      strategy: state.chaseState.strategy,
+      type: '负追'
+    };
+    // 插入到建议列表最前面
+    suggestions.unshift(chaseSuggestion);
+  }
+
+  // 最佳建议
+  const bestAdvice = suggestions.length > 0 ? suggestions[0] : null;
+
+  return { suggestions, betAdvice: bestAdvice, signals };
+}
+
+// ============================================================
+// UI 渲染
+// ============================================================
+
+function renderRoad() {
+  const board = document.getElementById('roadBoard');
+  board.innerHTML = '';
+  const r = state.road;
+  if (r.length === 0) {
+    // 显示新手指导
+    for (let i = 0; i < 20; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'road-cell empty';
+      board.appendChild(cell);
+    }
+    return;
+  }
+  // 计算行布局：每行20个
+  const maxPerRow = 20;
+  const rows = [];
+  for (let i = 0; i < r.length; i += maxPerRow) {
+    rows.push(r.slice(i, i + maxPerRow));
+  }
+  for (const row of rows) {
+    for (const cell of row) {
+      const div = document.createElement('div');
+      div.className = 'road-cell ' + (cell === 'T' ? 'T' : cell);
+      div.textContent = cell === 'B' ? '庄' : (cell === 'P' ? '闲' : '和');
+      if (cell === 'B') div.style.color = '#fff';
+      board.appendChild(div);
+    }
+    // 补齐空位
+    for (let i = row.length; i < maxPerRow; i++) {
+      const div = document.createElement('div');
+      div.className = 'road-cell empty';
+      board.appendChild(div);
+    }
+  }
+
+  // 更新计数
+  document.getElementById('roadCount').textContent = r.length + ' 手';
+}
+
+function renderStats() {
+  const r = state.road;
+  const bCount = r.filter(x => x === 'B').length;
+  const pCount = r.filter(x => x === 'P').length;
+  const tCount = r.filter(x => x === 'T').length;
+  const total = bCount + pCount;
+  document.getElementById('statB').textContent = bCount;
+  document.getElementById('statP').textContent = pCount;
+  document.getElementById('statT').textContent = tCount;
+  document.getElementById('statBPct').textContent = total > 0 ? (bCount / total * 100).toFixed(1) + '%' : '0%';
+  document.getElementById('statPPct').textContent = total > 0 ? (pCount / total * 100).toFixed(1) + '%' : '0%';
+
+  // 当前连
+  const nr = r.filter(x => x !== 'T');
+  let streak = 0;
+  if (nr.length > 0) {
+    const last = nr[nr.length - 1];
+    for (let i = nr.length - 1; i >= 0; i--) {
+      if (nr[i] === last) streak++;
+      else break;
+    }
+  }
+  document.getElementById('statStreak').textContent = streak;
+}
+
+function renderStatusBar() {
+  const bar = document.getElementById('statusBar');
+  const r = state.road;
+  const nr = r.filter(x => x !== 'T');
+  if (nr.length === 0) {
+    bar.innerHTML = '<span class="status-item"><span class="status-dot green"></span> 等待开局...</span>';
+    return;
+  }
+
+  const last = nr[nr.length - 1];
+  let streak = 0;
+  for (let i = nr.length - 1; i >= 0; i--) {
+    if (nr[i] === last) streak++;
+    else break;
+  }
+
+  let items = [];
+  items.push('<span class="status-item"><span class="status-dot ' + (streak >= 4 ? 'red' : 'green') + '"></span> 当前连: <b>' + streak + '</b>' + (last === 'B' ? '庄' : '闲') + '</span>');
+
+  // 检测单跳
+  let jumpCount = 0;
+  for (let i = nr.length - 1; i >= 1; i--) {
+    if (nr[i] !== nr[i - 1]) jumpCount++;
+    else break;
+  }
+  if (jumpCount >= 3) {
+    items.push('<span class="status-item"><span class="status-dot yellow"></span> ' + jumpCount + '连跳</span>');
+  }
+
+  // 检测长龙
+  if (streak >= 5) {
+    items.push('<span class="status-item"><span class="status-dot red"></span> ⚠️ ' + streak + '连' + (last === 'B' ? '庄' : '闲') + '龙！</span>');
+  }
+
+  // 负追状态
+  if (state.chaseState) {
+    var remainGuns = state.chaseState.maxGuns - state.chaseState.gunsUsed;
+    items.push('<span class="status-item"><span class="status-dot yellow"></span> 🔥 负追 ' + state.chaseState.strategy + ' 第' + (state.chaseState.gunsUsed + 1) + '枪/' + state.chaseState.maxGuns + '</span>');
+  }
+
+  bar.innerHTML = items.join('');
+}
+
+function renderSuggestions() {
+  const analysis = analyze();
+  const section = document.getElementById('strategySection');
+  const countLabel = document.getElementById('suggestionCount');
+
+  if (analysis.suggestions.length === 0) {
+    section.innerHTML = '<div class="strategy-card" style="border-left-color:#888;"><div class="label">系统提示</div><div class="desc">记录路单后自动分析</div></div>';
+    countLabel.textContent = '等待数据';
+    return;
+  }
+
+  countLabel.textContent = analysis.suggestions.length + ' 条';
+  section.innerHTML = '';
+  for (let si = 0; si < analysis.suggestions.length; si++) {
+    const sug = analysis.suggestions[si];
+    const isActive = analysis.betAdvice &&
+                     si === 0 &&
+                     sug.action === analysis.betAdvice.action &&
+                     sug.title === analysis.betAdvice.title;
+
+    const card = document.createElement('div');
+    const confClass = sug.confidence === '极高' || sug.confidence === '高' ? 'high' : (sug.confidence === '中' || sug.confidence === '中-高' ? 'mid' : 'low');
+    const typeColor = sug.type === '负追' ? 'signal-high' : (sug.type === '重注' || sug.type === '胜进' ? 'signal-mid' : 'signal-low');
+    card.className = 'strategy-card ' + typeColor;
+    if (isActive) {
+      card.style.borderLeft = '3px solid #4ecca3';
+      card.style.background = 'rgba(78,204,163,0.08)';
+      card.style.boxShadow = '0 0 8px rgba(78,204,163,0.15)';
+    }
+
+    const actionClass = sug.action === 'B' ? 'bet-b' : (sug.action === 'P' ? 'bet-p' : 'bet-pass');
+
+    const activeBadge = isActive ? '<span style="font-size:10px;background:rgba(78,204,163,0.2);color:#4ecca3;padding:1px 6px;border-radius:8px;margin-left:4px;">🟢 实时推荐</span>' : '';
+    const failureBadge = (state.strategyFailures[sug.strategy] || 0) > 0
+      ? '<span style="font-size:10px;color:#e94560;margin-left:4px;">⚠️已败' + state.strategyFailures[sug.strategy] + '次</span>'
+      : '';
+    // 滚动胜率衰退标识
+    const sugRolling = getRollingWR(sug.strategy);
+    const rollingBadge = (sugRolling !== null && sugRolling < 0.5)
+      ? '<span style="font-size:10px;color:#e94560;margin-left:4px;">🔻近' + state.strategyRecentResults[sug.strategy].length + '次' + (sugRolling * 100).toFixed(0) + '%</span>'
+      : (sugRolling !== null && sugRolling >= 0.65)
+        ? '<span style="font-size:10px;color:#4ecca3;margin-left:4px;">🔥近' + state.strategyRecentResults[sug.strategy].length + '次' + (sugRolling * 100).toFixed(0) + '%</span>'
+        : '';
+
+    card.innerHTML =
+      '<div class="label">' + sug.strategy + ' · ' + sug.type + activeBadge + failureBadge + rollingBadge +
+      ' <span class="confidence ' + confClass + '">' + sug.confidence + '胜率</span></div>' +
+      '<div class="title ' + (sug.type === '胜进' ? 'attack' : (sug.type === '负追' ? 'defense' : 'flat')) + '">' + sug.title + '</div>' +
+      '<div class="desc">' + sug.desc + '</div>' +
+      (sug.note ? '<div style="font-size:11px;color:#ffd93d;margin-top:4px;line-height:1.4;">📘 ' + sug.note + '</div>' : '') +
+      '<span class="action ' + actionClass + '">' + sug.actionLabel + '</span>';
+
+    section.appendChild(card);
+  }
+}
+
+// 获取策略的滚动胜率（近15次）
+function getRollingWR(strategyName) {
+  const recent = state.strategyRecentResults[strategyName];
+  if (!recent || recent.length < 5) return null; // 样本不足不降级
+  const wins = recent.reduce(function(sum, r) { return sum + r; }, 0);
+  return wins / recent.length;
+}
+
+// 信心等级 → 赔率级别（四级映射）
+// 考虑滚动胜率衰退自动降级
+function confToTier(confidence, strategyName) {
+  const map = {
+    '极高':  { label: '四级·极高赔率', pct: 0.12, icon: '💎', tier: 4 },
+    '高':    { label: '三级·高赔率',   pct: 0.08, icon: '🥉', tier: 3 },
+    '中-高': { label: '三级·高赔率',   pct: 0.08, icon: '🥉', tier: 3 },
+    '中':    { label: '二级·中赔率',   pct: 0.05, icon: '🥈', tier: 2 },
+    '低':    { label: '一级·平推',     pct: 0.03, icon: '🥇', tier: 1 },
+    '极低':  { label: '一级·平推',     pct: 0.03, icon: '🥇', tier: 1 }
+  };
+  var result = map[confidence] || { label: '一级·平推', pct: 0.03, icon: '🥇', tier: 1 };
+
+  // 滚动胜率衰退自动降级
+  if (strategyName) {
+    var rollingWR = getRollingWR(strategyName);
+    if (rollingWR !== null && rollingWR < 0.5) {
+      // 近15次胜率低于50%，降低一级
+      if (result.tier >= 3) {
+        result = { label: '二级·中赔率', pct: 0.05, icon: '🥈', tier: 2 };
+      } else if (result.tier === 2) {
+        result = { label: '一级·平推', pct: 0.03, icon: '🥇', tier: 1 };
+      }
+    }
+    if (rollingWR !== null && rollingWR < 0.35) {
+      // 近15次胜率低于35%，强制最低档
+      result = { label: '一级·平推（衰退警告）', pct: 0.03, icon: '🥇', tier: 1 };
+    }
+  }
+  return result;
+}
+
+function renderBetAdvice() {
+  const analysis = analyze();
+  const panel = document.getElementById('betAdvicePanel');
+  const label = document.getElementById('betAdviceLabel');
+
+  if (!analysis.betAdvice) {
+    label.textContent = '等待信号';
+    panel.innerHTML =
+      '<div style="font-size:24px;font-weight:bold;color:#888;" id="betAdviceAction">—</div>' +
+      '<div style="font-size:13px;color:#aaa;margin-top:4px;">记录路单后自动生成</div>';
+    return;
+  }
+
+  const sug = analysis.betAdvice;
+  const confLabel = sug.confidence === '极高' ? '🔥 极高胜率' : (sug.confidence === '高' ? '✅ 高胜率' : (sug.confidence === '中-高' ? '📈 中高胜率' : (sug.confidence === '中' ? '📊 中等胜率' : '💭 参考')));
+  label.textContent = sug.strategy + ' · ' + confLabel;
+
+  const actionText = sug.actionLabel;
+  const actionColor = sug.action === 'B' ? '#e94560' : '#4ecca3';
+
+  // 根据信心查赔率级别 → 算推荐注码（考虑衰退降级）
+  const tier = confToTier(sug.confidence, sug.strategy);
+  const recommendedBet = Math.round(state.capital * tier.pct);
+  const tierColor = tier.pct >= 0.12 ? '#ff6b9d' : (tier.pct >= 0.08 ? '#e94560' : (tier.pct >= 0.05 ? '#ffd93d' : '#4ecca3'));
+
+  // 失败追踪 + 滚动胜率
+  const failCount = state.strategyFailures[sug.strategy] || 0;
+  const rollingWR = getRollingWR(sug.strategy);
+  const rollingHtml = rollingWR !== null
+    ? '<div style="font-size:10px;color:' + (rollingWR < 0.5 ? '#e94560' : '#888') + ';margin-top:1px;">📊 近15次胜率: ' + (rollingWR * 100).toFixed(0) + '%</div>'
+    : '';
+  const failHtml = failCount > 0
+    ? '<div style="font-size:11px;color:#e94560;margin-top:2px;">⚠️ 该策略近期已失败 ' + failCount + ' 次，请降低注码谨慎操作</div>'
+    : (rollingWR !== null && rollingWR < 0.5
+      ? '<div style="font-size:11px;color:#e94560;margin-top:2px;">🔻 衰退警告：近15次胜率仅' + (rollingWR * 100).toFixed(0) + '%，系统已自动降级</div>'
+      : '');
+
+  // 对齐等级标识
+  const tierNames = ['', '🥇 一级·平推 3%', '🥈 二级·中赔率 5%', '🥉 三级·高赔率 8%', '💎 四级·极高赔率 12%'];
+
+  panel.innerHTML =
+    '<div style="font-size:20px;font-weight:bold;color:' + actionColor + ';" id="betAdviceAction">' + actionText + '</div>' +
+    '<div style="font-size:12px;color:#aaa;margin-top:2px;">' + sug.title + '</div>' +
+    '<div style="font-size:11px;color:#666;margin-top:4px;">🎯 当前策略: <b style="color:#e0e0e0;">' + sug.strategy + '</b> · ' + sug.type + '</div>' +
+    '<div style="font-size:15px;font-weight:bold;color:' + tierColor + ';margin-top:5px;">' + tier.icon + ' 推荐注码: <span style="font-size:17px;">' + recommendedBet.toLocaleString() + '</span></div>' +
+    '<div style="font-size:11px;color:#888;margin-top:1px;">→ ' + tier.label + '</div>' +
+    rollingHtml +
+    '<div style="font-size:11px;color:#555;margin-top:2px;">' + sug.desc + '</div>' +
+    failHtml;
+}
+
+function renderBankroll() {
+  // 同步当前资金 input 与 state
+  const capInput = document.getElementById('inputCapital');
+  if (capInput && parseInt(capInput.value) !== state.capital) {
+    capInput.value = state.capital;
+  }
+  const pl = state.capital - state.initCapital;
+  const plEl = document.getElementById('displayPL');
+  plEl.textContent = (pl >= 0 ? '+' : '') + pl.toLocaleString();
+  plEl.style.color = pl >= 0 ? '#4ecca3' : '#e94560';
+
+  // 四级赔率制：平推 / 中赔率 / 高赔率 / 极高赔率
+  const tier1 = Math.round(state.capital * 0.03);   // 平推  —— 低/极低信心
+  const tier2 = Math.round(state.capital * 0.05);   // 中赔率 —— 中信心
+  const tier3 = Math.round(state.capital * 0.08);   // 高赔率 —— 中-高/高信心
+  const tier4 = Math.round(state.capital * 0.12);   // 极高赔率 —— 极高信心
+  document.getElementById('displayBet1').textContent = tier1.toLocaleString();
+  document.getElementById('displayBet2').textContent = tier2.toLocaleString();
+  document.getElementById('displayBet3').textContent = tier3.toLocaleString();
+  document.getElementById('displayBet4').textContent = tier4.toLocaleString();
+
+  // 高亮当前建议对应的赔率档位
+  const analysis = analyze();
+  const currentConf = analysis.betAdvice ? analysis.betAdvice.confidence : null;
+  const confToIdx = { '极高': 4, '高': 3, '中-高': 3, '中': 2, '低': 1, '极低': 1 };
+  const activeIdx = confToIdx[currentConf] || 0;
+  for (let i = 1; i <= 4; i++) {
+    const row = document.getElementById('tierRow' + i);
+    if (row) {
+      row.style.background = i === activeIdx ? 'rgba(78,204,163,0.12)' : 'transparent';
+      row.style.borderRadius = i === activeIdx ? '6px' : '0';
+      row.style.padding = i === activeIdx ? '4px 8px' : '0';
+      row.style.margin = i === activeIdx ? '2px -8px' : '0';
+    }
+  }
+
+  // 止损警示：资金低于初始本金60%时变红警告
+  const lossRatio = state.initCapital > 0 ? state.capital / state.initCapital : 1;
+  const capInputStyle = document.getElementById('inputCapital');
+  if (capInputStyle) {
+    capInputStyle.style.color = lossRatio < 0.6 ? '#e94560' : (lossRatio < 0.8 ? '#ffd93d' : '#4ecca3');
+  }
+
+  // --- 抽水/返水计算 ---
+  var turnover = state.sessionStats.turnover || 0;
+  var bankerWins = state.sessionStats.bankerWinAmount || 0;
+  var commissionPaid = Math.round(bankerWins * 0.05);
+  var rebateRate = state.settings.rebateRate || 0.008;
+  var rebateEarned = Math.round(turnover * rebateRate);
+  var netPL = state.capital - state.initCapital;
+  var adjustedPL = netPL - commissionPaid + rebateEarned;
+
+  var commissionHtml = document.getElementById('commissionDisplay');
+  if (commissionHtml) {
+    commissionHtml.innerHTML =
+      '<div style="margin-top:6px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:10px;color:#888;line-height:1.6;">' +
+      '📊 流水: <b style="color:#aaa;">' + turnover.toLocaleString() + '</b> | ' +
+      '庄抽水: <b style="color:' + (commissionPaid > 0 ? '#e94560' : '#888') + ';">-' + commissionPaid.toLocaleString() + '</b> | ' +
+      '返水(' + (rebateRate * 100).toFixed(1) + '%): <b style="color:#4ecca3;">+' + rebateEarned.toLocaleString() + '</b><br>' +
+      '💰 实际盈亏(含抽水返水): <b style="color:' + (adjustedPL >= 0 ? '#4ecca3' : '#e94560') + ';">' + (adjustedPL >= 0 ? '+' : '') + adjustedPL.toLocaleString() + '</b>' +
+      '</div>';
+  }
+
+  // 更新顶部
+  document.getElementById('hdBankroll').textContent = state.capital.toLocaleString();
+  document.getElementById('hdProfit').textContent = (pl >= 0 ? '+' : '') + pl.toLocaleString();
+  document.getElementById('hdProfit').className = 'num' + (pl >= 0 ? '' : ' red');
+  document.getElementById('hdRounds').textContent = state.road.length;
+}
+
+function clearRoad() {
+  if (state.road.length > 0 && !confirm('确定清空大路记录？')) return;
+  // 如果当前有路单数据，自动保存为已完成会话
+  if (state.road.length > 0) {
+    endSession(false);
+  }
+  state.road = [];
+  state.sessionLog = [];
+  state.sessionStart = Date.now();
+  state.alertsCleared = false;
+  state.sessionStats = {
+    roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
+  };
+  renderAll();
+}
+
+// 初始本金变更
+function updateInitCapital() {
+  const val = parseInt(document.getElementById('inputInitCapital').value) || 10000;
+  state.initCapital = val;
+  // 当前资金同步初始化（仅当未单独设置过时）
+  if (!state._capitalManuallySet) {
+    state.capital = val;
+    document.getElementById('inputCapital').value = val;
+  }
+  renderAll();
+}
+
+// 当前资金手动变更（用户随时可改）
+function updateCurrentCapital() {
+  const val = parseInt(document.getElementById('inputCapital').value) || 0;
+  state.capital = val;
+  state._capitalManuallySet = true;
+  state.alertsCleared = false;
+  renderAll();
+}
+
+// 调整资金（赢/输后更新）
+function adjustCapital(amount) {
+  state.capital += amount;
+  if (state.capital < 0) state.capital = 0;
+  document.getElementById('inputCapital').value = state.capital;
+  state.alertsCleared = false;
+  renderAll();
+}
+
+// ============================================================
+// 全局渲染入口
+// ============================================================
+
+function renderAll() {
+  renderRoad();
+  renderStats();
+  renderStatusBar();
+  renderSuggestions();
+  renderBetAdvice();
+  renderBankroll();
+  renderAlerts();
+  renderLockState();
+  renderHeaderTimer();
+  saveState();
+}
+
+// ============================================================
+// 策略详情弹出
+// ============================================================
+
+function showDetail(key) {
+  const s = STRATEGIES[key];
+  if (!s) return;
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = s.name;
+  let html = '<p><b>类型：</b><span class="ref-tag ' + s.typeClass + '">' + s.type + '</span></p>';
+  html += '<p>' + s.desc + '</p>';
+  html += '<p><b>基本规则：</b></p><ul style="padding-left:20px;font-size:13px;color:#aaa;line-height:1.8;">';
+  for (const rule of s.rules) {
+    html += '<li>' + rule + '</li>';
+  }
+  html += '</ul>';
+  html += '<p><b>信号：</b>' + s.condition + '</p>';
+  html += '<p><b>下注方向：</b>' + s.bet + '</p>';
+  html += '<p><b>胜率评估：</b>' + s.confidence + '</p>';
+  html += '<p style="color:#ffd93d;font-size:12px;margin-top:8px;">' + s.note + '</p>';
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.add('show');
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay') && e.target.closest('.modal-box')) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function toggleRef() {
+  const grid = document.getElementById('refGrid');
+  grid.style.display = grid.style.display === 'none' ? 'grid' : 'none';
+}
+
+// ============================================================
+// 工具函数
+// ============================================================
+
+function formatTime(seconds) {
+  if (seconds <= 0) return '00:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function formatDuration(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return m + '分' + s + '秒';
+}
+
+// ============================================================
+// 锁定/强制执行系统
+// ============================================================
+
+function lockSystem(reason, durationMinutes) {
+  // reason: 'time_limit' | 'stop_loss' | 'take_profit' | 'daily_loss' | 'break'
+  state.locked = true;
+  state.lockReason = reason;
+  if (durationMinutes > 0) {
+    state.lockUntil = Date.now() + durationMinutes * 60 * 1000;
+  } else {
+    state.lockUntil = null; // 手动解锁
+  }
+  // 锁定所有下注按钮
+  document.querySelectorAll('.btn-b, .btn-p, .btn-t').forEach(function(btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.4';
+    btn.style.cursor = 'not-allowed';
+  });
+  renderAll();
+}
+
+function unlockSystem(showPrompt) {
+  if (showPrompt !== false) {
+    if (!confirm('确定要解锁继续游戏吗？建议遵守限制规则来控制风险。')) return;
+  }
+  state.locked = false;
+  state.lockReason = null;
+  state.lockUntil = null;
+  // 解锁所有下注按钮
+  document.querySelectorAll('.btn-b, .btn-p, .btn-t').forEach(function(btn) {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+  });
+  renderAll();
+}
+
+function renderLockState() {
+  const btns = document.querySelectorAll('.btn-b, .btn-p, .btn-t');
+  if (state.locked) {
+    btns.forEach(function(btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.4';
+      btn.style.cursor = 'not-allowed';
+    });
+  } else {
+    btns.forEach(function(btn) {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+    });
+  }
+}
+
+// ============================================================
+// 进阶提醒系统（取代原有 renderAlerts）
+// ============================================================
+
+function renderAlerts() {
+  const bar = document.getElementById('alertBar');
+  const icon = document.getElementById('alertIcon');
+  const text = document.getElementById('alertText');
+  const lockBtn = document.getElementById('alertActionBtn');
+  if (!bar || !text) return;
+
+  const ratio = state.initCapital > 0 ? state.capital / state.initCapital : 1;
+  const elapsed = (Date.now() - state.sessionStart) / 3600000;
+  const msgs = [];
+  let showLockBtn = false;
+  let lockAction = null;
+
+  // 1. 锁定状态 → 最优先显示
+  if (state.locked) {
+    const reasons = {
+      'time_limit': { icon: '🔒', text: '⏰ 游戏时间已到，系统已锁定休息中' },
+      'stop_loss': { icon: '🔒', text: '🛑 已达到止损线，系统已锁定！建议冷静分析后再考虑是否继续' },
+      'take_profit': { icon: '🔒', text: '💰 已达到止盈目标，系统已锁定！见好就收' },
+      'daily_loss': { icon: '🔒', text: '📉 已达到日亏损上限，系统已锁定！明日再战' },
+      'break': { icon: '🧊', text: '☕ 休息时间，系统已锁定！休息片刻后再继续' }
+    };
+    const r = reasons[state.lockReason] || { icon: '🔒', text: '系统已锁定' };
+    let lockText = r.text;
+    if (state.lockUntil) {
+      const remain = Math.max(0, Math.floor((state.lockUntil - Date.now()) / 1000));
+      lockText += ' ⏱ 剩余 ' + formatTime(remain);
+      lockBtn.style.display = 'inline-block';
+      lockBtn.textContent = '🔓 提前解锁';
+    } else {
+      lockBtn.style.display = 'inline-block';
+      lockBtn.textContent = '🔓 手动解锁';
+    }
+    msgs.push({ icon: r.icon, text: lockText, urgent: true });
+  } else {
+    lockBtn.style.display = 'none';
+  }
+
+  // 2. 冷却状态
+  if (state.coolDownUntil && !state.locked) {
+    const remain = Math.max(0, Math.floor((state.coolDownUntil - Date.now()) / 1000));
+    if (remain > 0) {
+      msgs.push({ icon: '🧊', text: '☕ 冷却中，剩余 ' + formatTime(remain) + '，请休息片刻' });
+    } else {
+      state.coolDownUntil = null;
+    }
+  }
+
+  // 递归保护：lockSystem → renderAll → renderAlerts 的循环调用
+  if (state._renderingAlerts) return;
+  state._renderingAlerts = true;
+
+  // 3. 时间限制检查（只在未锁定时显示提醒）
+  const timeLimit = state.settings.timeLimit;
+  if (timeLimit > 0 && !state.locked) {
+    const elapsedMin = elapsed * 60;
+    const remainMin = timeLimit - elapsedMin;
+    if (remainMin <= 0) {
+      // 时间到 → 锁定
+      lockSystem('time_limit', state.settings.breakDuration || 10);
+      state._renderingAlerts = false;
+      return;
+    } else if (remainMin <= state.settings.warningTime && state.settings.warningTime > 0) {
+      msgs.push({ icon: '⏰', text: '⏰ 距离限制时间还剩 ' + Math.ceil(remainMin) + ' 分钟，请准备收手' });
+    }
+  }
+
+  // 4. 休息间隔提醒
+  const breakInt = state.settings.breakInterval;
+  if (breakInt > 0 && !state.locked) {
+    const elapsedMin = elapsed * 60;
+    if (elapsedMin >= breakInt) {
+      const breakDur = state.settings.breakDuration || 10;
+      lockSystem('break', breakDur);
+      state._renderingAlerts = false;
+      return;
+    }
+  }
+
+  // 5. 盈亏限制检查
+  if (!state.locked) {
+    const stopLossHard = state.settings.stopLossPct;
+    const stopLossSoft = state.settings.stopLossSoftPct;
+    const takeProfitHard = state.settings.takeProfitPct;
+    const takeProfitSoft = state.settings.takeProfitSoftPct;
+
+    if (stopLossHard > 0 && ratio <= 1 - stopLossHard / 100) {
+      lockSystem('stop_loss');
+      return;
+    } else if (stopLossSoft > 0 && ratio <= 1 - stopLossSoft / 100) {
+      msgs.push({ icon: '🟡', text: '⚠️ 注意：资金已亏' + Math.round((1 - ratio) * 100) + '%，接近止损线，控制风险' });
+    }
+
+    if (takeProfitHard > 0 && ratio >= 1 + takeProfitHard / 100) {
+      state._renderingAlerts = false;
+      lockSystem('take_profit');
+      return;
+    } else if (takeProfitSoft > 0 && ratio >= 1 + takeProfitSoft / 100) {
+      msgs.push({ icon: '🟢', text: '📈 已盈利' + Math.round((ratio - 1) * 100) + '%，接近止盈目标，可考虑收手' });
+    }
+
+    // 每日亏损上限
+    const dailyLoss = state.settings.dailyLossLimit;
+    if (dailyLoss > 0 && state.dailyStats.totalPL <= -dailyLoss) {
+      state._renderingAlerts = false;
+      lockSystem('daily_loss');
+      return;
+    }
+  }
+
+  // 6. 长时间游戏提醒
+  if (!state.locked) {
+    if (elapsed >= 2) {
+      msgs.push({ icon: '⏰', text: '⏰ 已游戏' + Math.round(elapsed * 10) / 10 + '小时，建议休息，不要恋战' });
+    } else if (elapsed >= 1.5) {
+      msgs.push({ icon: '⏰', text: '⏰ 已游戏' + Math.round(elapsed * 10) / 10 + '小时，接近2小时请注意' });
+    }
+  }
+
+  // 7. 提示今日盈亏状态
+  if (state.dailyStats.totalPL !== 0) {
+    const sign = state.dailyStats.totalPL > 0 ? '+' : '';
+    msgs.push({ icon: '📊', text: '📊 今日累计: ' + sign + state.dailyStats.totalPL.toLocaleString() });
+  }
+
+  if (msgs.length > 0 && !state.alertsCleared) {
+    const msg = msgs[0];
+    icon.textContent = msg.icon;
+    text.textContent = msg.text;
+    bar.style.display = '';
+  } else if (!state.locked) {
+    bar.style.display = 'none';
+  }
+  state._renderingAlerts = false;
+}
+
+function dismissAlert() {
+  state.alertsCleared = true;
+  if (!state.locked) {
+    document.getElementById('alertBar').style.display = 'none';
+  }
+}
+
+function renderHeaderTimer() {
+  const el = document.getElementById('headerTimer');
+  if (!el) return;
+  // 显示时间限制倒计时
+  const timeLimit = state.settings.timeLimit;
+  if (timeLimit > 0 && !state.locked) {
+    const elapsed = (Date.now() - state.sessionStart) / 60000;
+    const remain = Math.max(0, timeLimit - elapsed);
+    const m = Math.floor(remain);
+    const s = Math.floor((remain - m) * 60);
+    const color = remain < 5 ? '#e94560' : (remain < 10 ? '#ffd93d' : '#888');
+    el.style.color = color;
+    el.textContent = '⏱ ' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  } else if (state.locked) {
+    el.textContent = '🔒 已锁定';
+    el.style.color = '#e94560';
+  } else {
+    const elapsed = (Date.now() - state.sessionStart) / 3600000;
+    if (elapsed > 0.5) {
+      el.textContent = '⏱ ' + Math.floor(elapsed * 60) + 'min';
+    } else {
+      el.textContent = '';
+    }
+  }
+}
+
+// ============================================================
+// 负追分枪追踪
+// ============================================================
+
+// 哪些策略使用负追，最大几枪
+var CHASE_CONFIG = {
+  '长龙回头不过3': { maxGuns: 3, label: '负追3枪' },
+  '三一式打法': { maxGuns: 2, label: '负追2枪' },
+  '一四式三角形': { maxGuns: 4, label: '逐级负追4步' },
+  '单跳长龙不过3': { maxGuns: 3, label: '负追3枪' },
+  '小三打法': { maxGuns: 3, label: '负追3把' },
+  '锯齿型打法': { maxGuns: 3, label: '负追3枪' },
+  'M型打法': { maxGuns: 2, label: '负追2把' },
+  '斩龙/三断长龙': { maxGuns: 3, label: '负追3枪' },
+  '交叉性组合打法': { maxGuns: 2, label: '负追2枪' },
+  '双跳狙击型': { maxGuns: 3, label: '负追3枪' },
+  '长龙回头龙尾跳': { maxGuns: 3, label: '负追3枪' },
+  '大三打法': { maxGuns: 2, label: '负追2枪' }
+};
+
+function getChaseConfig(strategyName) {
+  return CHASE_CONFIG[strategyName] || null;
+}
+
+function isNegativeProgressionStrategy(strategyName) {
+  return !!getChaseConfig(strategyName);
+}
+
+function resetChase() {
+  state.chaseState = null;
+}
+
+function startOrContinueChase(strategyName, direction) {
+  if (!strategyName || !direction) return;
+  var config = getChaseConfig(strategyName);
+  if (!config) return;
+
+  if (state.chaseState && state.chaseState.strategy === strategyName && state.chaseState.direction === direction) {
+    // 继续负追
+    state.chaseState.gunsUsed++;
+  } else {
+    // 开始新负追
+    state.chaseState = {
+      strategy: strategyName,
+      direction: direction,
+      gunsUsed: 1,
+      maxGuns: config.maxGuns,
+      roundStarted: state.road.length + 1
+    };
+  }
+}
+
+// 更新分枪统计
+function recordGunResult(strategyName, gunNumber, isWin) {
+  if (!strategyName || !gunNumber) return;
+  if (!state.chaseStats[strategyName]) {
+    state.chaseStats[strategyName] = {};
+  }
+  var gunKey = 'gun' + gunNumber;
+  if (!state.chaseStats[strategyName][gunKey]) {
+    state.chaseStats[strategyName][gunKey] = { wins: 0, losses: 0, count: 0 };
+  }
+  var stat = state.chaseStats[strategyName][gunKey];
+  stat.count++;
+  if (isWin) stat.wins++;
+  else stat.losses++;
+}
+
+// 获取当前负追状态文本
+function getChaseLabel() {
+  if (!state.chaseState) return null;
+  return '负追第' + state.chaseState.gunsUsed + '枪/' + state.chaseState.maxGuns;
+}
+
+// ============================================================
+// 会话日志系统
+// ============================================================
+
+function addResult(type) {
+  // 检查锁定状态
+  if (state.locked) {
+    alert('🔒 系统已锁定，请先解锁或等待冷却结束');
+    return;
+  }
+  if (state.coolDownUntil && state.coolDownUntil > Date.now()) {
+    alert('🧊 冷却中，请稍后再操作');
+    return;
+  }
+
+  // 记录本次结果前的推荐（用于失败追踪 + 复盘日志）
+  const prevAnalysis = analyze();
+  const prevAdvice = prevAnalysis.betAdvice;
+
+  // 计算本次推荐注码
+  let recommendedBet = 0;
+  let tierInfo = null;
+  if (prevAdvice) {
+    const tier = confToTier(prevAdvice.confidence, prevAdvice.strategy);
+    tierInfo = tier;
+    recommendedBet = Math.round(state.capital * tier.pct);
+  }
+
+  // 提取当前路况信号（用于复盘条件分析）
+  const roadSignals = prevAnalysis.signals.map(function(s) { return s.type; });
+  // 检测是否有特殊全局条件
+  const hasDD = (function() {
+    if (state.road.length < 12) return false;
+    const nr = state.road.filter(function(x) { return x !== 'T'; });
+    let dc = 0, sl = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) sl++;
+      else { if (sl >= 6) dc++; sl = 1; }
+    }
+    if (sl >= 6) dc++;
+    return dc >= 2;
+  })();
+  // 检测金手指
+  const hasGF = roadSignals.indexOf('golden_finger') !== -1;
+
+  // 检查是否使用了自定义策略
+  var usingCustomStrategy = _selectedCustomStrategy && type !== 'T';
+  var activeStrategyName = null;
+  var activeStrategyAction = null;
+  var activeStrategyConfidence = null;
+
+  if (usingCustomStrategy) {
+    // 查找自定义策略
+    var csFound = null;
+    for (var csi = 0; csi < (state.customStrategies || []).length; csi++) {
+      if (state.customStrategies[csi].name === _selectedCustomStrategy) {
+        csFound = state.customStrategies[csi];
+        break;
+      }
+    }
+    if (csFound) {
+      activeStrategyName = csFound.name;
+      activeStrategyAction = csFound.direction;
+      activeStrategyConfidence = csFound.confidence;
+      recommendedBet = Math.round(state.capital * confToTier(csFound.confidence, csFound.name).pct);
+    } else {
+      usingCustomStrategy = false;
+    }
+  }
+
+  if (!usingCustomStrategy && prevAdvice) {
+    activeStrategyName = prevAdvice.strategy;
+    activeStrategyAction = prevAdvice.action;
+    activeStrategyConfidence = prevAdvice.confidence;
+  }
+
+  // 检测用户覆盖：系统有推荐但用户点击了不同方向 → 不计入策略统计
+  var isUserOverride = !usingCustomStrategy && prevAdvice && type !== 'T' && type !== prevAdvice.action;
+  if (isUserOverride) {
+    // 用户自行选择，不拉低策略胜率
+    activeStrategyName = null;
+    activeStrategyAction = null;
+    activeStrategyConfidence = null;
+  }
+
+  // 构造推荐信息（用于日志，即使被覆盖也保留原始推荐）
+  var logRecommendation = null;
+  if (usingCustomStrategy && activeStrategyName) {
+    // 自定义策略（isUserOverride=false时才有activeStrategyName）
+    logRecommendation = {
+      strategy: activeStrategyName,
+      confidence: activeStrategyConfidence,
+      action: activeStrategyAction,
+      betAmount: recommendedBet,
+      tier: tierInfo ? tierInfo.label : null,
+      isCustom: true
+    };
+  } else if (prevAdvice) {
+    // 系统推荐（不论用户是否跟随，日志保留原始推荐）
+    logRecommendation = {
+      strategy: prevAdvice.strategy,
+      confidence: prevAdvice.confidence,
+      action: prevAdvice.action,
+      betAmount: recommendedBet,
+      tier: tierInfo ? tierInfo.label : null,
+      isCustom: false,
+      isUserOverride: isUserOverride
+    };
+  }
+
+  // 记录当前负追枪数
+  var chaseGunNumber = (state.chaseState && state.chaseState.strategy === (activeStrategyName || (prevAdvice ? prevAdvice.strategy : null))) ? state.chaseState.gunsUsed : null;
+
+  // 记录日志：下注前的快照
+  const logEntry = {
+    timestamp: Date.now(),
+    roundIndex: state.road.length + 1,
+    roadSnapshot: JSON.stringify(state.road),
+    recommendation: logRecommendation,
+    userFollowed: null,
+    actualResult: type,
+    profitImpact: 0,
+    gunNumber: chaseGunNumber, // 负追第几枪
+    conditions: {
+      hasDoubleDragon: hasDD,
+      hasGoldenFinger: hasGF,
+      signals: roadSignals
+    }
+  };
+
+  state.road.push(type);
+
+  // 计算盈利影响（和局不计胜负）
+  if (type === 'T') {
+    state.sessionStats.roundsTied++;
+    logEntry.profitImpact = 0;
+    logEntry.userFollowed = false;
+  } else if (activeStrategyName && activeStrategyAction) {
+    // 用户跟随了系统推荐或使用了自定义策略
+    var isWin = activeStrategyAction === type;
+    if (isWin) {
+      const winAmount = type === 'P' ? recommendedBet : Math.round(recommendedBet * 0.95);
+      logEntry.profitImpact = winAmount;
+      state.sessionStats.roundsWon++;
+    } else {
+      logEntry.profitImpact = -recommendedBet;
+      state.sessionStats.roundsLost++;
+    }
+    logEntry.userFollowed = true;
+  } else {
+    // 无推荐 或 用户覆盖了系统推荐
+    state.sessionStats.roundsLost++;
+    logEntry.profitImpact = 0;
+    logEntry.userFollowed = false;
+  }
+
+  // --- 负追分枪管理 ---
+  if (type !== 'T' && activeStrategyName && isNegativeProgressionStrategy(activeStrategyName) && !isUserOverride) {
+    // 当前是跟随负追策略的投注
+    var currentGun = state.chaseState ? state.chaseState.gunsUsed + 1 : 1;
+    if (isWin) {
+      // 赢了 → 记录当前枪为胜，结束负追
+      recordGunResult(activeStrategyName, currentGun, true);
+      resetChase();
+    } else {
+      // 输了 → 记录当前枪为负，开始或继续负追
+      recordGunResult(activeStrategyName, currentGun, false);
+      startOrContinueChase(activeStrategyName, activeStrategyAction);
+    }
+  } else if (type !== 'T' && activeStrategyName && !isUserOverride) {
+    // 非负追策略或自定义策略 → 清除之前的负追状态
+    resetChase();
+  }
+
+  // 更新策略统计数据（仅当用户跟随推荐或使用自定义策略时）
+  if (activeStrategyName && type !== 'T') {
+    const sKey = activeStrategyName;
+    if (!state.sessionStats.strategyStats[sKey]) {
+      state.sessionStats.strategyStats[sKey] = { wins: 0, losses: 0, count: 0 };
+    }
+    const ss = state.sessionStats.strategyStats[sKey];
+    ss.count++;
+    if (isWin) {
+      ss.wins++;
+      state.strategyFailures[sKey] = 0;
+    } else if (type !== 'T') {
+      ss.losses++;
+      state.strategyFailures[sKey] = (state.strategyFailures[sKey] || 0) + 1;
+    }
+
+    // 滚动结果窗口（近15次）
+    if (type !== 'T') {
+      if (!state.strategyRecentResults[sKey]) state.strategyRecentResults[sKey] = [];
+      const recent = state.strategyRecentResults[sKey];
+      recent.push(isWin ? 1 : 0);
+      if (recent.length > 15) recent.shift();
+    }
+  }
+
+  // 清除自定义策略选择
+  if (usingCustomStrategy) {
+    _selectedCustomStrategy = null;
+  }
+
+  // 追踪流水和抽水
+  var betAmt = recommendedBet || 0;
+  if (type !== 'T' && betAmt > 0) {
+    state.sessionStats.turnover = (state.sessionStats.turnover || 0) + betAmt;
+    if (type === 'B') {
+      state.sessionStats.bankerBetAmount = (state.sessionStats.bankerBetAmount || 0) + betAmt;
+      if (isWin) state.sessionStats.bankerWinAmount = (state.sessionStats.bankerWinAmount || 0) + betAmt;
+    } else if (type === 'P') {
+      state.sessionStats.playerBetAmount = (state.sessionStats.playerBetAmount || 0) + betAmt;
+    }
+  }
+
+  state.sessionLog.push(logEntry);
+  state.sessionStats.roundsPlayed++;
+  state.sessionStats.profitLoss += logEntry.profitImpact;
+  state.capital += logEntry.profitImpact;
+  if (state.capital < 0) state.capital = 0;
+
+  renderAll();
+  // 滚动到最新
+  const board = document.getElementById('roadBoard');
+  board.scrollTop = board.scrollHeight;
+  board.scrollLeft = board.scrollWidth;
+}
+
+function undoResult() {
+  if (state.road.length === 0) return;
+  if (state.locked) return;
+  // 移除最后一条日志
+  const removed = state.road.pop();
+  if (state.sessionLog.length > 0) {
+    const lastLog = state.sessionLog.pop();
+    state.capital -= lastLog.profitImpact;
+    state.sessionStats.roundsPlayed--;
+    state.sessionStats.profitLoss -= lastLog.profitImpact;
+    if (lastLog.profitImpact > 0) {
+      state.sessionStats.roundsWon--;
+    } else if (lastLog.profitImpact < 0) {
+      state.sessionStats.roundsLost--;
+    } else if (lastLog.actualResult === 'T') {
+      state.sessionStats.roundsTied--;
+    }
+  }
+  renderAll();
+}
+
+// ============================================================
+// 会话生命周期
+// ============================================================
+
+function endSession(confirmAction) {
+  if (confirmAction !== false && state.road.length === 0) {
+    alert('当前没有路单数据可以保存');
+    return;
+  }
+
+  if (state.road.length === 0) return;
+
+  const sessionRecord = {
+    id: Date.now(),
+    startTime: state.sessionStart,
+    endTime: Date.now(),
+    road: JSON.parse(JSON.stringify(state.road)),
+    sessionLog: JSON.parse(JSON.stringify(state.sessionLog)),
+    sessionStats: JSON.parse(JSON.stringify(state.sessionStats)),
+    chaseStats: JSON.parse(JSON.stringify(state.chaseStats)),
+    initCapital: state.initCapital,
+    finalCapital: state.capital,
+    profitLoss: state.capital - state.initCapital,
+    settings: JSON.parse(JSON.stringify(state.settings))
+  };
+
+  state.completedSessions.push(sessionRecord);
+
+  // 更新日统计
+  state.dailyStats.totalPL += sessionRecord.profitLoss;
+  state.dailyStats.sessionsCount++;
+  state.dailyStats.date = new Date().toISOString().slice(0,10);
+
+  // 重置当前会话
+  state.road = [];
+  state.sessionLog = [];
+  state.sessionStats = {
+    roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
+  };
+  state.sessionStart = Date.now();
+  state.alertsCleared = false;
+  state.strategyFailures = {};
+  state.locked = false;
+  state.lockReason = null;
+  state.lockUntil = null;
+  state.coolDownUntil = null;
+  resetChase();
+
+  renderAll();
+  if (confirmAction !== false) {
+    alert('✅ 会话已保存！可以查看复盘数据。');
+  }
+}
+
+// ============================================================
+// 复盘面板
+// ============================================================
+
+function openReview() {
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = '📊 复盘分析';
+  let html = '';
+
+  // 当前会话摘要
+  const currPL = state.capital - state.initCapital;
+  const currRounds = state.sessionStats.roundsPlayed;
+
+  html += '<div style="margin-bottom:8px;padding:6px 10px;background:rgba(78,204,163,0.08);border-radius:8px;">';
+  html += '<div style="font-size:13px;font-weight:bold;color:#4ecca3;margin-bottom:3px;">📋 当前会话</div>';
+  html += '<div style="font-size:12px;color:#aaa;">局数: ' + currRounds + ' | 盈亏: <b style="color:' + (currPL >= 0 ? '#4ecca3' : '#e94560') + ';">' + (currPL >= 0 ? '+' : '') + currPL.toLocaleString() + '</b></div>';
+  html += '</div>';
+
+  // ===== 综合统计（跨所有会话）=====
+  const sessions = state.completedSessions;
+  const allSessions = sessions.slice(); // 全部已完成会话 + 当前会话（如果有数据）
+  const hasCurrent = currRounds > 0;
+
+  // 聚合所有策略数据
+  const allStrategyStats = {};
+  let totalRoundsAll = 0;
+  let totalWonAll = 0;
+  let totalTiedAll = 0;
+
+  // 合并已完成会话
+  for (const s of sessions) {
+    totalRoundsAll += s.sessionStats.roundsPlayed || 0;
+    totalWonAll += s.sessionStats.roundsWon || 0;
+    totalTiedAll += s.sessionStats.roundsTied || 0;
+    const strStats = s.sessionStats.strategyStats || {};
+    for (const key of Object.keys(strStats)) {
+      if (!allStrategyStats[key]) allStrategyStats[key] = { wins: 0, losses: 0, count: 0 };
+      allStrategyStats[key].wins += strStats[key].wins || 0;
+      allStrategyStats[key].losses += strStats[key].losses || 0;
+      allStrategyStats[key].count += strStats[key].count || 0;
+    }
+  }
+
+  // 合并当前会话
+  if (hasCurrent) {
+    totalRoundsAll += state.sessionStats.roundsPlayed;
+    totalWonAll += state.sessionStats.roundsWon;
+    totalTiedAll += state.sessionStats.roundsTied || 0;
+    const curStrStats = state.sessionStats.strategyStats || {};
+    for (const key of Object.keys(curStrStats)) {
+      if (!allStrategyStats[key]) allStrategyStats[key] = { wins: 0, losses: 0, count: 0 };
+      allStrategyStats[key].wins += curStrStats[key].wins || 0;
+      allStrategyStats[key].losses += curStrStats[key].losses || 0;
+      allStrategyStats[key].count += curStrStats[key].count || 0;
+    }
+  }
+
+  const hasAnyData = totalRoundsAll > 0 || sessions.length > 0;
+
+  if (!hasAnyData) {
+    html += '<p style="color:#888;text-align:center;padding:20px 0;">暂无会话数据，记录路单后自动生成复盘</p>';
+    document.getElementById('modalBody').innerHTML = html;
+    modal.classList.add('show');
+    return;
+  }
+
+  // --- 综合统计头部 ---
+  const effTotal = totalRoundsAll - totalTiedAll;
+  const overallWR = effTotal > 0 ? (totalWonAll / effTotal * 100).toFixed(1) : '0.0';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:8px;">';
+  html += '<div style="font-size:13px;font-weight:bold;color:#ffd93d;margin-bottom:4px;">🏆 综合统计 (' + (sessions.length + (hasCurrent ? 1 : 0)) + ' 会话)</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;font-size:11px;color:#aaa;">';
+  html += '<div>局数: <b style="color:#e0e0e0;">' + totalRoundsAll + '</b></div>';
+  html += '<div>胜/负/和: <b style="color:#4ecca3;">' + totalWonAll + '</b>/<b style="color:#e94560;">' + (totalRoundsAll - totalWonAll - totalTiedAll) + '</b>/<b style="color:#888;">' + totalTiedAll + '</b></div>';
+  html += '<div>总命中: <b style="color:' + (overallWR >= 50 ? '#4ecca3' : '#e94560') + ';">' + overallWR + '%</b></div>';
+  html += '</div>';
+
+  // ================================================================
+  // 跨会话日志聚合（用于信心校准、趋势、条件分析）
+  // ================================================================
+  const allLogs = [];
+  for (const s of sessions) {
+    if (s.sessionLog && s.sessionLog.length) {
+      for (const log of s.sessionLog) {
+        allLogs.push(log);
+      }
+    }
+  }
+  // 合并当前会话
+  if (hasCurrent) {
+    for (const log of state.sessionLog) {
+      allLogs.push(log);
+    }
+  }
+
+  // --- 聚合数据：按策略追踪推荐和盈亏 ---
+  const strKeys = Object.keys(allStrategyStats);
+
+  // --- ① 策略盈亏排行榜（新！按盈利贡献排序）---
+  // 从日志中聚合每策略的累计盈亏
+  const profitByStrategy = {};
+  for (const log of allLogs) {
+    if (log.recommendation && log.recommendation.strategy) {
+      const sname = log.recommendation.strategy;
+      if (!profitByStrategy[sname]) profitByStrategy[sname] = 0;
+      profitByStrategy[sname] += log.profitImpact || 0;
+    }
+  }
+
+  if (strKeys.length > 0) {
+    // 构建排名数据
+    const ranked = strKeys
+      .filter(function(k) { return allStrategyStats[k].count >= 2; })
+      .map(function(k) {
+        const s = allStrategyStats[k];
+        const wr2 = s.count > 0 ? (s.wins / s.count * 100) : 0;
+        const profit = profitByStrategy[k] || 0;
+        return { name: k, wins: s.wins, losses: s.losses, count: s.count, winRate: wr2, profit: profit };
+      })
+      .sort(function(a, b) { return b.winRate - a.winRate; });
+
+    if (ranked.length > 0) {
+      html += '<div style="margin-top:8px;">';
+
+      // ----- Tab 切换：胜率排名 / 盈利排名 / 信心校准 / 趋势 & 条件 -----
+      html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;">';
+      html += '<span id="rankTabWinRate" class="btn btn-sm" style="background:#533483;color:#fff;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'winRate\')">📊 胜率排名</span>';
+      html += '<span id="rankTabProfit" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'profit\')">💰 盈利排名</span>';
+      html += '<span id="rankTabCalibrate" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'calibrate\')">🎯 信心校准</span>';
+      html += '<span id="rankTabTrend" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'trend\')">📈 趋势&条件</span>';
+      html += '</div>';
+
+      // ===== Tab 1: 胜率排名 =====
+      html += '<div id="reviewTabWinRate">';
+      html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:4px;">🥇 策略胜率排行榜</div>';
+      html += '<div style="max-height:240px;overflow-y:auto;">';
+      html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:10px;color:#888;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;">';
+      html += '<div>策略</div><div style="text-align:center;">次数</div><div style="text-align:center;">胜</div><div style="text-align:center;">负</div><div style="text-align:right;">胜率</div>';
+      html += '</div>';
+
+      for (let ri = 0; ri < ranked.length; ri++) {
+        const r = ranked[ri];
+        const medal = ri === 0 ? '🥇' : (ri === 1 ? '🥈' : (ri === 2 ? '🥉' : ''));
+        const wrStr = r.winRate.toFixed(1) + '%';
+        const wrColor = r.winRate >= 65 ? '#4ecca3' : (r.winRate >= 50 ? '#ffd93d' : '#e94560');
+        const barPct = Math.min(r.winRate, 100);
+        html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04);position:relative;">';
+        html += '<div style="position:absolute;left:0;top:0;bottom:0;width:' + barPct + '%;background:rgba(78,204,163,0.08);border-radius:0 2px 2px 0;"></div>';
+        html += '<div style="position:relative;z-index:1;display:flex;align-items:center;gap:3px;">' + medal + '<span style="color:#e0e0e0;font-size:11px;">' + r.name + '</span></div>';
+        html += '<div style="text-align:center;position:relative;z-index:1;color:#888;">' + r.count + '</div>';
+        html += '<div style="text-align:center;position:relative;z-index:1;color:#4ecca3;">' + r.wins + '</div>';
+        html += '<div style="text-align:center;position:relative;z-index:1;color:#e94560;">' + r.losses + '</div>';
+        html += '<div style="text-align:right;position:relative;z-index:1;color:' + wrColor + ';font-weight:bold;">' + wrStr + '</div>';
+        html += '</div>';
+      }
+
+      const insufficient = strKeys.filter(function(k) { return allStrategyStats[k].count < 2; });
+      if (insufficient.length > 0) {
+        html += '<div style="margin-top:4px;font-size:10px;color:#666;">样本不足（<2次）: ' + insufficient.map(function(k) { return k + '(' + allStrategyStats[k].count + '次)'; }).join('、') + '</div>';
+      }
+      html += '</div></div>'; // end Tab 1
+
+      // ===== Tab 2: 盈利排名 =====
+      const profitRanked = ranked.slice().sort(function(a, b) { return b.profit - a.profit; });
+      html += '<div id="reviewTabProfit" style="display:none;">';
+      html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin-bottom:4px;">💰 策略盈利贡献排名</div>';
+      html += '<div style="max-height:240px;overflow-y:auto;">';
+      html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:10px;color:#888;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;">';
+      html += '<div>策略</div><div style="text-align:center;">次数</div><div style="text-align:center;">胜率</div><div style="text-align:right;">累计盈亏</div>';
+      html += '</div>';
+      for (let ri = 0; ri < profitRanked.length; ri++) {
+        const r = profitRanked[ri];
+        const medal = ri === 0 ? '🥇' : (ri === 1 ? '🥈' : (ri === 2 ? '🥉' : ''));
+        const pColor = r.profit >= 0 ? '#4ecca3' : '#e94560';
+        // 盈亏条形图（正负方向）
+        const maxProfit = Math.max.apply(null, profitRanked.map(function(x) { return Math.abs(x.profit); })) || 1;
+        const barW = Math.min(100, Math.abs(r.profit) / maxProfit * 100);
+        const barColor = r.profit >= 0 ? 'rgba(78,204,163,0.12)' : 'rgba(233,69,96,0.12)';
+        html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04);position:relative;">';
+        html += '<div style="position:absolute;left:' + (r.profit >= 0 ? '0' : (100-barW) + '%') + ';top:0;bottom:0;width:' + barW + '%;background:' + barColor + ';border-radius:0 2px 2px 0;"></div>';
+        html += '<div style="position:relative;z-index:1;display:flex;align-items:center;gap:3px;">' + medal + '<span style="color:#e0e0e0;font-size:11px;">' + r.name + '</span></div>';
+        html += '<div style="text-align:center;position:relative;z-index:1;color:#888;">' + r.count + '</div>';
+        html += '<div style="text-align:center;position:relative;z-index:1;color:#aaa;">' + r.winRate.toFixed(0) + '%</div>';
+        html += '<div style="text-align:right;position:relative;z-index:1;color:' + pColor + ';font-weight:bold;">' + (r.profit >= 0 ? '+' : '') + r.profit.toLocaleString() + '</div>';
+        html += '</div>';
+      }
+      html += '</div></div>'; // end Tab 2
+
+      // ===== Tab 3: 信心校准 =====
+      // 分析系统标注的信心等级与实际胜率的差距
+      const confLevels = { '极高': { wins:0, total:0 }, '高': { wins:0, total:0 }, '中-高': { wins:0, total:0 }, '中': { wins:0, total:0 }, '低': { wins:0, total:0 }, '极低': { wins:0, total:0 } };
+      for (const log of allLogs) {
+        if (log.recommendation && log.actualResult !== 'T' && log.recommendation.confidence && confLevels[log.recommendation.confidence]) {
+          const cl = log.recommendation.confidence;
+          confLevels[cl].total++;
+          if (log.recommendation.action === log.actualResult) {
+            confLevels[cl].wins++;
+          }
+        }
+      }
+
+      html += '<div id="reviewTabCalibrate" style="display:none;">';
+      html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:4px;">🎯 信心等级校准</div>';
+      html += '<div style="max-height:240px;overflow-y:auto;">';
+      html += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:10px;color:#888;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;">';
+      html += '<div>信心等级</div><div style="text-align:center;">次数</div><div style="text-align:center;">胜</div><div style="text-align:right;">实际胜率</div>';
+      html += '</div>';
+
+      const confOrder = ['极高', '高', '中-高', '中', '低', '极低'];
+      let calTotal = 0, calWins = 0;
+      for (const cl of confOrder) {
+        const d = confLevels[cl];
+        if (d.total === 0) continue;
+        const actualWR = (d.wins / d.total * 100).toFixed(1);
+        calTotal += d.total; calWins += d.wins;
+        // 判断系统是否高估/低估
+        const expectedWR = { '极高': 85, '高': 75, '中-高': 65, '中': 55, '低': 40, '极低': 30 }[cl] || 50;
+        const diff = d.wins / d.total * 100 - expectedWR;
+        let calNote = '';
+        if (Math.abs(diff) > 10) {
+          calNote = diff > 0 ? ' 📈超出预期' : ' 📉低于预期';
+        } else {
+          calNote = ' ✅正常';
+        }
+        html += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr;gap:2px;padding:3px 6px;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04);">';
+        html += '<div style="color:#e0e0e0;">' + cl + '</div>';
+        html += '<div style="text-align:center;color:#888;">' + d.total + '</div>';
+        html += '<div style="text-align:center;color:#4ecca3;">' + d.wins + '</div>';
+        html += '<div style="text-align:right;color:' + (d.wins/d.total >= 0.5 ? '#4ecca3' : '#e94560') + ';font-weight:bold;">' + actualWR + '%' + calNote + '</div>';
+        html += '</div>';
+      }
+      html += '<div style="margin-top:4px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:10px;color:#888;line-height:1.5;">';
+      html += '💡 绿色"超出预期"=系统低估了你；红色"低于预期"=系统高估了该等级。<br>理想状态下所有等级都显示"正常"';
+      html += '</div>';
+      html += '</div></div>'; // end Tab 3
+
+      // ===== Tab 4: 趋势分析 & 条件标签 =====
+      html += '<div id="reviewTabTrend" style="display:none;">';
+      // 4a. 趋势分析：对比前半段和后半段的胜率
+      html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin-bottom:4px;">📈 策略趋势分析</div>';
+      html += '<div style="max-height:160px;overflow-y:auto;">';
+      // 对每个使用5次以上的策略做趋势分析
+      const trendCandidates = strKeys.filter(function(k) { return allStrategyStats[k].count >= 5; });
+      if (trendCandidates.length === 0) {
+        html += '<div style="font-size:11px;color:#888;padding:4px 0;">需要每个策略至少5次数据才能分析趋势，继续积累数据</div>';
+      } else {
+        html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:2px;padding:3px 6px;font-size:10px;color:#888;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;">';
+        html += '<div>策略</div><div style="text-align:center;">前半</div><div style="text-align:center;">后半</div><div style="text-align:right;">趋势</div>';
+        html += '</div>';
+        for (const key of trendCandidates) {
+          // 收集该策略的所有日志（按时间排序）
+          const strategyLogs = allLogs.filter(function(l) { return l.recommendation && l.recommendation.strategy === key && l.actualResult !== 'T'; });
+          strategyLogs.sort(function(a, b) { return a.timestamp - b.timestamp; });
+          if (strategyLogs.length < 5) continue;
+          const mid = Math.floor(strategyLogs.length / 2);
+          const early = strategyLogs.slice(0, mid);
+          const late = strategyLogs.slice(mid);
+          const earlyWins = early.filter(function(l) { return l.recommendation.action === l.actualResult; }).length;
+          const lateWins = late.filter(function(l) { return l.recommendation.action === l.actualResult; }).length;
+          const earlyWR = (earlyWins / early.length * 100).toFixed(0);
+          const lateWR = (lateWins / late.length * 100).toFixed(0);
+          const trend = parseInt(lateWR) - parseInt(earlyWR);
+          const trendIcon = trend > 5 ? '📈' : (trend < -5 ? '📉' : '➡️');
+          const trendColor = trend > 5 ? '#4ecca3' : (trend < -5 ? '#e94560' : '#888');
+          html += '<div style="display:grid;grid-template-columns:3fr 1fr 1fr 1fr;gap:2px;padding:3px 6px;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04);">';
+          html += '<div style="color:#e0e0e0;">' + key + '</div>';
+          html += '<div style="text-align:center;color:#aaa;">' + earlyWR + '%</div>';
+          html += '<div style="text-align:center;color:#aaa;">' + lateWR + '%</div>';
+          html += '<div style="text-align:right;color:' + trendColor + ';font-weight:bold;">' + trendIcon + ' ' + (trend > 0 ? '+' : '') + trend + '%</div>';
+          html += '</div>';
+        }
+      }
+      html += '</div>'; // end trend
+
+      // 4b. 条件标签分析
+      html += '<div style="margin-top:6px;">';
+      html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:4px;">🏷️ 路况条件分析</div>';
+      html += '<div style="max-height:160px;overflow-y:auto;">';
+
+      // 收集所有有推荐且非和的日志，统计在特定条件下的表现
+      const conditionLogs = allLogs.filter(function(l) { return l.recommendation && l.conditions && l.actualResult !== 'T'; });
+      const conditionsToCheck = [
+        { key: 'hasDoubleDragon', label: '双联龙时', trueLabel: '双联龙', falseLabel: '无双联龙' },
+        { key: 'hasGoldenFinger', label: '金手指时', trueLabel: '金手指', falseLabel: '无金手指' }
+      ];
+
+      // 计算每个策略在每种条件下的表现
+      const conditionKeys = ['hasDoubleDragon', 'hasGoldenFinger'];
+      for (const ck of conditionKeys) {
+        const cInfo = conditionsToCheck.find(function(c) { return c.key === ck; });
+        // 对每个策略，计算在true/false条件下的表现
+        const condData = {};
+        for (const log of conditionLogs) {
+          const sn = log.recommendation.strategy;
+          const cond = log.conditions[ck] === true;
+          if (!condData[sn]) condData[sn] = { trueWins: 0, trueTotal: 0, falseWins: 0, falseTotal: 0 };
+          if (cond) {
+            condData[sn].trueTotal++;
+            if (log.recommendation.action === log.actualResult) condData[sn].trueWins++;
+          } else {
+            condData[sn].falseTotal++;
+            if (log.recommendation.action === log.actualResult) condData[sn].falseWins++;
+          }
+        }
+        // 找出有明显差异的策略（条件影响≥20%且至少2次）
+        const impacted = Object.keys(condData).filter(function(sn) {
+          const d = condData[sn];
+          if (d.trueTotal < 2 || d.falseTotal < 2) return false;
+          const trueWR = d.trueWins / d.trueTotal * 100;
+          const falseWR = d.falseWins / d.falseTotal * 100;
+          return Math.abs(trueWR - falseWR) >= 20;
+        }).sort(function(a, b) {
+          const dA = Math.abs(condData[a].trueWins/condData[a].trueTotal*100 - condData[a].falseWins/condData[a].falseTotal*100);
+          const dB = Math.abs(condData[b].trueWins/condData[b].trueTotal*100 - condData[b].falseWins/condData[b].falseTotal*100);
+          return dB - dA;
+        });
+
+        if (impacted.length > 0) {
+          html += '<div style="font-size:11px;color:#aaa;margin-bottom:3px;">' + cInfo.label + '，以下策略表现差异明显：</div>';
+          for (const sn of impacted) {
+            const d = condData[sn];
+            const tWR = (d.trueWins / d.trueTotal * 100).toFixed(0);
+            const fWR = (d.falseWins / d.falseTotal * 100).toFixed(0);
+            const diff = parseInt(tWR) - parseInt(fWR);
+            const suggest = diff < -15 ? ' 建议避开此条件' : (diff > 15 ? ' 此条件有利' : '');
+            html += '<div style="padding:2px 6px;font-size:10px;color:#ccc;border-left:2px solid ' + (diff > 0 ? '#4ecca3' : '#e94560') + ';margin-bottom:2px;">';
+            html += '⚡ ' + sn + ': ' + cInfo.trueLabel + ' ' + tWR + '% vs ' + cInfo.falseLabel + ' ' + fWR + '%' + suggest;
+            html += '</div>';
+          }
+        } else {
+          html += '<div style="font-size:10px;color:#666;margin-bottom:4px;">' + cInfo.label + '，暂无显著性差异（需更多数据）</div>';
+        }
+      }
+
+      html += '<div style="margin-top:4px;font-size:10px;color:#666;">💡 条件分析需要日志中记录了路况信号，新记录的数据会自动包含</div>';
+      html += '</div></div>'; // end Tab 4
+
+      // ===== 分析建议 =====
+      const best = ranked[0];
+      if (best && best.winRate >= 60) {
+        html += '<div style="margin-top:6px;padding:5px 8px;background:rgba(78,204,163,0.1);border-radius:6px;font-size:11px;color:#4ecca3;">';
+        html += '💡 <b>综合建议</b>：当前王牌策略是「' + best.name + '」（胜率' + best.winRate.toFixed(1) + '%）。';
+        if (ranked.length >= 2 && ranked[0].winRate - ranked[1].winRate < 5) {
+          html += '「' + ranked[1].name + '」表现接近，可作为备选。';
+        }
+        // 盈利排名建议
+        const bestProfit = profitRanked[0];
+        if (bestProfit && bestProfit.name !== best.name && bestProfit.profit > 0) {
+          html += ' 盈利最佳是「' + bestProfit.name + '」（+' + bestProfit.profit.toLocaleString() + '），虽然胜率不是最高但收益可观。';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>'; // end strategy stats section
+    }
+  }
+
+  html += '</div>'; // 综合统计结束
+
+  // ===== 历史会话列表 =====
+  if (sessions.length > 0) {
+    html += '<div style="margin-top:8px;">';
+    html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin-bottom:4px;">📜 历史会话详情</div>';
+    html += '<div style="max-height:200px;overflow-y:auto;">';
+    for (let i = sessions.length - 1; i >= 0; i--) {
+      const s = sessions[i];
+      const pl = s.profitLoss;
+      const start = new Date(s.startTime);
+      const dur = formatDuration(s.endTime - s.startTime);
+      html += '<div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:4px 8px;margin-bottom:3px;cursor:pointer;border-left:3px solid ' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';" onclick="showSessionDetail(' + i + ')">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+      html += '<div><span style="font-size:11px;">#' + (i+1) + ' ' + (start.getMonth()+1)+'/'+start.getDate() + ' ' + String(start.getHours()).padStart(2,'0')+':'+String(start.getMinutes()).padStart(2,'0') + '</span>';
+      html += '<span style="font-size:10px;color:#888;margin-left:4px;">' + dur + ' · ' + s.road.length + '局</span></div>';
+      const effRounds = s.sessionStats.roundsPlayed - (s.sessionStats.roundsTied || 0);
+      const wr = effRounds > 0 ? (s.sessionStats.roundsWon / effRounds * 100).toFixed(1) : '0.0';
+      html += '<div><b style="color:' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';font-size:12px;">' + (pl >= 0 ? '+' : '') + pl.toLocaleString() + '</b>';
+      html += '<span style="font-size:10px;color:#888;margin-left:4px;">(' + wr + '%)</span></div>';
+      html += '</div>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.add('show');
+}
+
+function showSessionDetail(index) {
+  const sessions = state.completedSessions;
+  if (index < 0 || index >= sessions.length) return;
+  const s = sessions[index];
+
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = '📊 会话复盘 #' + (index + 1);
+
+  let html = '';
+
+  // --- 会话摘要 ---
+  const start = new Date(s.startTime);
+  const end = new Date(s.endTime);
+  const dur = formatDuration(s.endTime - s.startTime);
+  const pl = s.profitLoss;
+  const effRounds = s.sessionStats.roundsPlayed - (s.sessionStats.roundsTied || 0);
+  const wr = effRounds > 0 ? (s.sessionStats.roundsWon / effRounds * 100).toFixed(1) : '0.0';
+
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:8px 10px;margin-bottom:10px;">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#aaa;">';
+  html += '<div>开始: ' + start.toLocaleString() + '</div>';
+  html += '<div>时长: ' + dur + '</div>';
+  html += '<div>局数: ' + s.road.length + '</div>';
+  html += '<div>盈亏: <b style="color:' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';">' + (pl >= 0 ? '+' : '') + pl.toLocaleString() + '</b></div>';
+  html += '<div>胜: ' + s.sessionStats.roundsWon + '</div>';
+  html += '<div>负: ' + s.sessionStats.roundsLost + '</div>';
+  html += '<div>和: ' + (s.sessionStats.roundsTied || 0) + '</div>';
+  html += '<div>命中率: <b>' + wr + '%</b></div>';
+  html += '<div>本金: ' + s.initCapital.toLocaleString() + '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // --- 策略表现表 ---
+  const strStats = s.sessionStats.strategyStats;
+  const strKeys = Object.keys(strStats);
+  if (strKeys.length > 0) {
+    html += '<div style="font-size:13px;font-weight:bold;color:#4ecca3;margin:8px 0 4px;">📋 策略表现</div>';
+    html += '<div style="font-size:11px;overflow-x:auto;">';
+    html += '<table style="width:100%;border-collapse:collapse;">';
+    html += '<tr style="color:#888;border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:3px 6px;">策略</td><td style="padding:3px 6px;text-align:center;">次数</td><td style="padding:3px 6px;text-align:center;">胜率</td><td style="padding:3px 6px;text-align:right;">表现</td></tr>';
+    // 按使用次数排序
+    const sorted = strKeys.sort(function(a, b) { return strStats[b].count - strStats[a].count; });
+    for (const key of sorted) {
+      const ss = strStats[key];
+      const winRate = ss.count > 0 ? (ss.wins / ss.count * 100).toFixed(0) : '0';
+      const perf = ss.wins >= ss.losses ? '✅' : (ss.wins > 0 ? '⚠️' : '❌');
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+      html += '<td style="padding:2px 6px;font-size:11px;">' + key + '</td>';
+      html += '<td style="padding:2px 6px;text-align:center;">' + ss.count + '</td>';
+      html += '<td style="padding:2px 6px;text-align:center;">' + winRate + '%</td>';
+      html += '<td style="padding:2px 6px;text-align:right;">' + perf + '</td>';
+      html += '</tr>';
+    }
+    html += '</table>';
+    html += '</div>';
+
+    // --- 负追分枪统计（如果有数据）---
+    var chaseStats = s.chaseStats || {};
+    var chaseKeys = Object.keys(chaseStats);
+    // 也检查当前会话
+    if (!chaseKeys.length) {
+      chaseStats = state.chaseStats || {};
+      chaseKeys = Object.keys(chaseStats);
+    }
+    if (chaseKeys.length > 0) {
+      html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin:8px 0 4px;">🎯 负追分枪统计</div>';
+      html += '<div style="font-size:10px;color:#888;margin-bottom:4px;">区分第一枪/第二枪/第三枪的胜率，负追策略后续枪命中率通常递减</div>';
+      for (var ck = 0; ck < chaseKeys.length; ck++) {
+        var chaseKey = chaseKeys[ck];
+        var guns = chaseStats[chaseKey];
+        // 只看有数据的策略
+        if (!guns || !Object.keys(guns).length) continue;
+        html += '<div style="font-size:11px;color:#e0e0e0;margin:4px 0 2px;">' + chaseKey + '</div>';
+        html += '<div style="display:flex;gap:3px;flex-wrap:wrap;">';
+        var gunKeys = Object.keys(guns).sort();
+        for (var gi = 0; gi < gunKeys.length; gi++) {
+          var gk = gunKeys[gi];
+          var gs = guns[gk];
+          if (!gs || !gs.count) continue;
+          var gWR = (gs.wins / gs.count * 100).toFixed(0);
+          var gColor = gWR >= 60 ? '#4ecca3' : (gWR >= 40 ? '#ffd93d' : '#e94560');
+          var gunNum = gk.replace('gun', '');
+          html += '<div style="background:rgba(255,255,255,0.04);border-radius:4px;padding:4px 8px;text-align:center;min-width:60px;">';
+          html += '<div style="font-size:10px;color:#888;">第' + gunNum + '枪</div>';
+          html += '<div style="font-size:13px;font-weight:bold;color:' + gColor + ';">' + gWR + '%</div>';
+          html += '<div style="font-size:9px;color:#666;">' + gs.wins + '胜' + gs.losses + '负</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+      html += '<div style="margin-top:4px;font-size:10px;color:#666;">💡 负追第一枪命中率通常最高，后续递减速考虑降低注码</div>';
+    }
+  }
+
+  // --- 偏差分析：高概率推荐失败 → 为什么没按预期走 ---
+  if (s.sessionLog && s.sessionLog.length > 0) {
+    const highConfFailures = s.sessionLog.filter(function(log) {
+      return log.recommendation &&
+             !log.recommendation.isUserOverride && // 排除用户覆盖操作
+             (log.recommendation.confidence === '高' || log.recommendation.confidence === '极高') &&
+             log.actualResult !== 'T' &&
+             log.recommendation.action !== log.actualResult;
+    });
+
+    if (highConfFailures.length > 0) {
+      html += '<div style="font-size:13px;font-weight:bold;color:#e94560;margin:10px 0 4px;">🔍 偏差分析：高概率策略为何失败</div>';
+      html += '<div style="font-size:11px;color:#aaa;line-height:1.6;">';
+      html += '有 <b style="color:#e94560;">' + highConfFailures.length + '</b> 次高信心推荐未命中：';
+      html += '<div style="max-height:200px;overflow-y:auto;margin-top:4px;">';
+      for (const f of highConfFailures) {
+        const time = new Date(f.timestamp);
+        html += '<div style="background:rgba(233,69,96,0.06);border-radius:4px;padding:4px 6px;margin-bottom:3px;">';
+        html += '<span style="color:#ffd93d;">第' + f.roundIndex + '手</span> ';
+        html += '<span style="color:#888;">' + f.recommendation.strategy + '</span> → ';
+        html += '推荐<b>' + (f.recommendation.action === 'B' ? '庄' : '闲') + '</b>，实际出<b>' + (f.actualResult === 'B' ? '庄' : '闲') + '</b>';
+        html += '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    // 分析跟随率
+    const followed = s.sessionLog.filter(function(log) { return log.userFollowed === true && log.actualResult !== 'T'; });
+    const notFollowed = s.sessionLog.filter(function(log) { return log.userFollowed === false && log.actualResult !== 'T'; });
+    const overrode = s.sessionLog.filter(function(log) { return log.recommendation && log.recommendation.isUserOverride && log.actualResult !== 'T'; });
+    if (followed.length + notFollowed.length > 0) {
+      html += '<div style="font-size:13px;font-weight:bold;color:#ffd93d;margin:8px 0 4px;">📈 推荐跟随率</div>';
+      html += '<div style="font-size:12px;color:#aaa;">';
+      html += '跟随推荐: <b style="color:#4ecca3;">' + followed.length + '</b> 次';
+      if (overrode.length > 0) {
+        html += ' | 自行选择: <b style="color:#ffd93d;">' + overrode.length + '</b> 次';
+      }
+      html += ' | 未跟随: ' + (notFollowed.length - overrode.length) + ' 次';
+      const followRate = (followed.length / Math.max(followed.length + notFollowed.length, 1) * 100).toFixed(0);
+      html += ' | 跟随率: <b>' + followRate + '%</b>';
+      html += '</div>';
+    }
+  }
+
+  // --- 完整路单复盘 ---
+  html += '<div style="font-size:13px;font-weight:bold;color:#4ecca3;margin:10px 0 4px;">📜 路单复盘</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:6px;background:rgba(0,0,0,0.2);border-radius:6px;max-height:150px;overflow-y:auto;">';
+  for (let i = 0; i < s.road.length; i++) {
+    const r = s.road[i];
+    // 查找是否有日志标记
+    const log = s.sessionLog ? s.sessionLog.find(function(l) { return l.roundIndex === i + 1; }) : null;
+    let marker = '';
+    if (log && log.recommendation && log.actualResult !== 'T') {
+      if (log.recommendation.isUserOverride) {
+        marker = '⚠️'; // 用户未跟随推荐，自己选的方向
+      } else if (log.recommendation.action === log.actualResult) {
+        marker = '✅';
+      } else {
+        marker = '❌';
+      }
+    }
+    html += '<div style="width:26px;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;background:' + (r === 'B' ? '#e94560' : (r === 'P' ? '#4ecca3' : '#ffd93d')) + ';color:' + (r === 'T' ? '#333' : '#fff') + ';position:relative;">';
+    html += (r === 'B' ? '庄' : (r === 'P' ? '闲' : '和'));
+    if (marker) {
+      html += '<span style="position:absolute;top:-6px;right:-6px;font-size:8px;">' + marker + '</span>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  html += '<div style="font-size:10px;color:#888;margin-top:4px;">✅ 推荐正确 ❌ 推荐错误 ⚠️ 用户未跟随 无标记=无推荐或和局</div>';
+
+  // --- 导出按钮 ---
+  html += '<div style="margin-top:12px;display:flex;gap:6px;">';
+  html += '<button class="btn btn-sm" style="background:#533483;" onclick="exportSessionReport(' + index + ')">📤 导出此会话报告</button>';
+  html += '<button class="btn btn-sm" style="background:#2d2d44;" onclick="closeModal()">关闭</button>';
+  html += '</div>';
+
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.add('show');
+}
+
+// ============================================================
+// 数据导入导出
+// ============================================================
+
+function exportSessionReport(index) {
+  const sessions = state.completedSessions;
+  if (index < 0 || index >= sessions.length) return;
+  const s = sessions[index];
+  const start = new Date(s.startTime);
+  const pl = s.profitLoss;
+  const effRounds = s.sessionStats.roundsPlayed - (s.sessionStats.roundsTied || 0);
+  const wr = effRounds > 0 ? (s.sessionStats.roundsWon / effRounds * 100).toFixed(1) : '0.0';
+  const dur = formatDuration(s.endTime - s.startTime);
+
+  let report = '=== Baccarat 复盘报告 ===\n';
+  report += '时间: ' + start.toLocaleString() + ' (' + dur + ')\n';
+  report += '局数: ' + s.road.length + ' | 盈亏: ' + (pl >= 0 ? '+' : '') + pl + '\n';
+  report += '命中率: ' + wr + '% (' + s.sessionStats.roundsWon + '/' + effRounds + '，不含和局)\n\n';
+  report += '--- 策略表现 ---\n';
+  const keys = Object.keys(s.sessionStats.strategyStats);
+  for (const key of keys) {
+    const ss = s.sessionStats.strategyStats[key];
+    const sr = ss.count > 0 ? (ss.wins / ss.count * 100).toFixed(0) + '%' : 'N/A';
+    report += key + ': ' + ss.count + '次, 胜率' + sr + '\n';
+  }
+  report += '\n--- 路单 ---\n';
+  report += s.road.map(function(r) { return r === 'B' ? '庄' : (r === 'P' ? '闲' : '和'); }).join(' ');
+  report += '\n\n--- 逐手记录 ---\n';
+  if (s.sessionLog) {
+    for (const log of s.sessionLog) {
+      const rec = log.recommendation;
+      report += '#' + log.roundIndex + ' 出' + (log.actualResult === 'B' ? '庄' : (log.actualResult === 'P' ? '闲' : '和'));
+      if (rec) {
+        report += ' | 推荐:' + rec.strategy + '→' + (rec.action === 'B' ? '庄' : '闲') + '(' + rec.confidence + ')';
+        report += ' | 结果:' + (rec.action === log.actualResult ? '✅中' : '❌不中');
+      }
+      report += '\n';
+    }
+  }
+  report += '\n--- 报告结束 ---\n';
+
+  // 复制到剪贴板
+  navigator.clipboard.writeText(report).then(function() {
+    alert('✅ 报告已复制到剪贴板，可粘贴到记事本保存');
+  }).catch(function() {
+    // 回退方案
+    const blob = new Blob([report], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'baccarat-report-' + (index + 1) + '.txt';
+    a.click();
+  });
+}
+
+function exportAllData() {
+  const data = {
+    exportVersion: '2.0',
+    exportDate: new Date().toISOString(),
+    completedSessions: state.completedSessions,
+    dailyStats: state.dailyStats,
+    settings: state.settings
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'baccarat-data-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  alert('✅ 数据已导出');
+}
+
+function importAllData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!data.completedSessions) throw new Error('无效的数据格式');
+        if (!confirm('导入将覆盖现有历史数据（共' + data.completedSessions.length + '个会话），确认？')) return;
+        state.completedSessions = data.completedSessions || [];
+        state.dailyStats = data.dailyStats || defaultDailyStats();
+        if (data.settings) {
+          state.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
+        }
+        saveState();
+        renderAll();
+        alert('✅ 数据导入成功！共 ' + state.completedSessions.length + ' 个会话');
+      } catch(err) {
+        alert('❌ 导入失败：文件格式不正确');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ 确定清空所有历史会话数据？此操作不可撤销！')) return;
+  if (!confirm('再次确认：将永久删除所有' + state.completedSessions.length + '个历史会话记录？')) return;
+  state.completedSessions = [];
+  state.dailyStats = defaultDailyStats();
+  saveState();
+  renderAll();
+  alert('✅ 数据已清空');
+}
+
+// ============================================================
+// 设置面板
+// ============================================================
+
+function openSettings() {
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = '⚙️ 系统设置';
+  const s = state.settings;
+
+  let html = '';
+
+  // Tab 导航
+  html += '<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;">';
+  html += '<span id="tabTime" class="btn btn-sm" style="background:#533483;color:#fff;" onclick="switchSettingTab(\'time\')">⏱ 时间</span>';
+  html += '<span id="tabMoney" class="btn btn-sm" style="background:#2d2d44;color:#aaa;" onclick="switchSettingTab(\'money\')">💰 盈亏</span>';
+  html += '<span id="tabStrategy" class="btn btn-sm" style="background:#2d2d44;color:#aaa;" onclick="switchSettingTab(\'strategy\')">📋 策略</span>';
+  html += '<span id="tabData" class="btn btn-sm" style="background:#2d2d44;color:#aaa;" onclick="switchSettingTab(\'data\')">📊 数据</span>';
+  html += '</div>';
+
+  // Tab 1: 时间限制
+  html += '<div id="settingTabTime">';
+  html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:6px;">⏱ 游戏时间限制</div>';
+
+  html += '<div class="setting-row"><label>单局时长上限</label>';
+  html += '<select id="setTimeLimit" onchange="updateSetting(\'timeLimit\', parseInt(this.value))">';
+  html += '<option value="0"' + (s.timeLimit === 0 ? ' selected' : '') + '>不限制</option>';
+  html += '<option value="15"' + (s.timeLimit === 15 ? ' selected' : '') + '>15分钟</option>';
+  html += '<option value="30"' + (s.timeLimit === 30 ? ' selected' : '') + '>30分钟</option>';
+  html += '<option value="45"' + (s.timeLimit === 45 ? ' selected' : '') + '>45分钟</option>';
+  html += '<option value="60"' + (s.timeLimit === 60 ? ' selected' : '') + '>1小时</option>';
+  html += '<option value="90"' + (s.timeLimit === 90 ? ' selected' : '') + '>1.5小时</option>';
+  html += '<option value="120"' + (s.timeLimit === 120 ? ' selected' : '') + '>2小时</option>';
+  html += '</select></div>';
+
+  html += '<div class="setting-row"><label>提前提醒（分钟）</label>';
+  html += '<input type="number" value="' + s.warningTime + '" min="1" max="30" onchange="updateSetting(\'warningTime\', parseInt(this.value)||5)" style="width:60px;">';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>休息间隔（分钟，0=不提醒）</label>';
+  html += '<input type="number" value="' + s.breakInterval + '" min="0" max="120" onchange="updateSetting(\'breakInterval\', parseInt(this.value)||0)" style="width:60px;">';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>休息时长（分钟）</label>';
+  html += '<input type="number" value="' + s.breakDuration + '" min="1" max="60" onchange="updateSetting(\'breakDuration\', parseInt(this.value)||10)" style="width:60px;">';
+  html += '</div>';
+  html += '</div>'; // end tabTime
+
+  // Tab 2: 盈亏限制
+  html += '<div id="settingTabMoney" style="display:none;">';
+  html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:6px;">💰 盈亏限制</div>';
+
+  html += '<div class="setting-row"><label>硬止损（亏损 %）</label>';
+  html += '<input type="number" value="' + s.stopLossPct + '" min="0" max="100" onchange="updateSetting(\'stopLossPct\', parseInt(this.value)||20)" style="width:60px;">';
+  html += '<span style="font-size:10px;color:#888;margin-left:4px;">0=不限制</span>';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>软提醒止损（%）</label>';
+  html += '<input type="number" value="' + s.stopLossSoftPct + '" min="0" max="100" onchange="updateSetting(\'stopLossSoftPct\', parseInt(this.value)||10)" style="width:60px;">';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>硬止盈（盈利 %）</label>';
+  html += '<input type="number" value="' + s.takeProfitPct + '" min="0" max="200" onchange="updateSetting(\'takeProfitPct\', parseInt(this.value)||20)" style="width:60px;">';
+  html += '<span style="font-size:10px;color:#888;margin-left:4px;">0=不限制</span>';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>软提醒止盈（%）</label>';
+  html += '<input type="number" value="' + s.takeProfitSoftPct + '" min="0" max="200" onchange="updateSetting(\'takeProfitSoftPct\', parseInt(this.value)||10)" style="width:60px;">';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>达到硬限制后锁定</label>';
+  html += '<input type="checkbox" ' + (s.hardLimitLock ? 'checked' : '') + ' onchange="updateSetting(\'hardLimitLock\', this.checked)" style="width:auto;">';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>日亏损上限</label>';
+  html += '<input type="number" value="' + s.dailyLossLimit + '" min="0" step="1000" onchange="updateSetting(\'dailyLossLimit\', parseInt(this.value)||0)" style="width:80px;">';
+  html += '<span style="font-size:10px;color:#888;margin-left:4px;">0=不限制</span>';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>返水比例</label>';
+  html += '<input type="number" value="' + (s.rebateRate * 100) + '" min="0" max="5" step="0.1" onchange="updateSetting(\'rebateRate\', parseFloat(this.value)/100||0.008)" style="width:60px;">';
+  html += '<span style="font-size:10px;color:#888;margin-left:4px;">%</span>';
+  html += '</div>';
+  html += '</div>'; // end tabMoney
+
+  // Tab 3: 策略管理
+  html += '<div id="settingTabStrategy" style="display:none;">';
+
+  // --- 内建策略启停 ---
+  html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:4px;">📋 策略启停管理</div>';
+  html += '<div style="font-size:10px;color:#888;margin-bottom:6px;">关闭的策略将不再出现在推荐中，适合发现某策略已失效时手动关闭</div>';
+  html += '<div style="max-height:180px;overflow-y:auto;margin-bottom:8px;">';
+  // 列出所有内建策略
+  const builtinKeys = Object.keys(STRATEGIES);
+  for (var si = 0; si < builtinKeys.length; si++) {
+    var sk = builtinKeys[si];
+    var st = STRATEGIES[sk];
+    var isEnabled = state.strategyEnabled[st.name] !== false; // 默认启用
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,0.04);">';
+    html += '<label style="font-size:11px;color:#ccc;cursor:pointer;"><input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + st.name.replace(/'/g, "\\'") + '\', this.checked)" style="margin-right:4px;">' + st.name + '</label>';
+    // 显示滚动胜率（如果有）
+    var sRolling = getRollingWR(st.name);
+    if (sRolling !== null) {
+      var sColor = sRolling < 0.5 ? '#e94560' : (sRolling >= 0.65 ? '#4ecca3' : '#ffd93d');
+      html += '<span style="font-size:10px;color:' + sColor + ';">近15次' + (sRolling * 100).toFixed(0) + '%</span>';
+    } else {
+      html += '<span style="font-size:10px;color:#666;">暂无数据</span>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // --- 自定义策略 ---
+  html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin:8px 0 4px;">🔧 自定义新策略</div>';
+  html += '<div style="font-size:10px;color:#888;margin-bottom:6px;">发现新的高概率玩法？记录下来让系统追踪它的表现！</div>';
+
+  // 已有自定义策略列表
+  var customStrs = state.customStrategies || [];
+  if (customStrs.length > 0) {
+    for (var ci = 0; ci < customStrs.length; ci++) {
+      var cs = customStrs[ci];
+      var csEnabled = state.strategyEnabled[cs.name] !== false;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(78,204,163,0.1);background:rgba(78,204,163,0.04);border-radius:4px;margin-bottom:2px;">';
+      html += '<div style="flex:1;">';
+      html += '<div style="font-size:11px;color:#4ecca3;">' + cs.name + ' <span style="font-size:10px;color:#888;">→ ' + (cs.direction === 'B' ? '👑庄' : '👤闲') + ' · ' + cs.confidence + '</span></div>';
+      html += '<div style="font-size:10px;color:#666;">' + (cs.description || '') + '</div>';
+      // 显示滚动胜率
+      var csr = getRollingWR(cs.name);
+      if (csr !== null) {
+        html += '<div style="font-size:10px;color:' + (csr < 0.5 ? '#e94560' : '#4ecca3') + ';">📊 近15次胜率: ' + (csr * 100).toFixed(0) + '%</div>';
+      }
+      html += '</div>';
+      html += '<div style="display:flex;gap:4px;align-items:center;">';
+      html += '<input type="checkbox" ' + (csEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + cs.name.replace(/'/g, "\\'") + '\', this.checked)" style="width:auto;">';
+      html += '<button class="btn btn-sm" style="background:#2d2d44;color:#e94560;font-size:10px;padding:2px 6px;" onclick="deleteCustomStrategy(' + ci + ')">✕</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+  }
+
+  // 添加新自定义策略表单
+  html += '<div style="margin-top:6px;padding:6px;background:rgba(255,255,255,0.03);border-radius:6px;">';
+  html += '<div style="font-size:11px;font-weight:bold;color:#aaa;margin-bottom:4px;">添加新策略</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+  html += '<input id="newCsName" placeholder="策略名称（如：三连闲后打庄）" style="background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#fff;padding:4px 6px;font-size:12px;">';
+  html += '<input id="newCsDesc" placeholder="描述什么情况下使用" style="background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#fff;padding:4px 6px;font-size:12px;">';
+  html += '<div style="display:flex;gap:4px;align-items:center;">';
+  html += '<select id="newCsDir" style="background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#fff;padding:3px 6px;font-size:12px;flex:1;">';
+  html += '<option value="B">👑 庄</option>';
+  html += '<option value="P">👤 闲</option>';
+  html += '</select>';
+  html += '<select id="newCsConf" style="background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#fff;padding:3px 6px;font-size:12px;flex:1;">';
+  html += '<option value="极高">极高（试玩后调）</option>';
+  html += '<option value="高" selected>高</option>';
+  html += '<option value="中-高">中-高</option>';
+  html += '<option value="中">中</option>';
+  html += '<option value="低">低（先观察）</option>';
+  html += '</select>';
+  html += '<button class="btn btn-sm" style="background:#533483;color:#fff;font-size:11px;padding:4px 10px;" onclick="addCustomStrategy()">➕ 添加</button>';
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-top:8px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:10px;color:#888;line-height:1.5;">';
+  html += '💡 添加自定义策略后，点击路单下方的"自定义"按钮即可在实战中选择使用，系统会自动追踪其表现并纳入复盘统计。';
+  html += '</div>';
+
+  html += '</div>'; // end tabStrategy
+
+  // Tab 4: 数据管理
+  html += '<div id="settingTabData" style="display:none;">';
+  html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:6px;">📊 数据管理</div>';
+  html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px;">已有 ' + state.completedSessions.length + ' 个历史会话</div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+  html += '<button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="exportAllData()">📤 导出所有数据</button>';
+  html += '<button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="importAllData()">📥 导入数据</button>';
+  html += '<button class="btn btn-sm" style="background:#2d2d44;color:#e94560;" onclick="clearAllData()">🗑 清空历史</button>';
+  html += '</div>';
+  html += '<div style="margin-top:10px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;color:#888;">';
+  html += '数据保存于浏览器本地存储，清除浏览器缓存会丢失数据。建议定期导出备份。';
+  html += '</div>';
+  html += '</div>'; // end tabData
+
+  // 当前状态显示
+  html += '<div style="margin-top:10px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;font-size:11px;color:#888;line-height:1.6;">';
+  html += '📊 今日: ' + state.dailyStats.date + ' | 累计盈亏: ' + (state.dailyStats.totalPL >= 0 ? '+' : '') + state.dailyStats.totalPL.toLocaleString();
+  html += ' | 会话: ' + state.dailyStats.sessionsCount + ' 次';
+  html += '</div>';
+
+  // 关闭按钮
+  html += '<div style="margin-top:10px;text-align:center;">';
+  html += '<button class="btn btn-sm" style="background:#2d2d44;color:#aaa;" onclick="closeModal()">关闭设置</button>';
+  html += '</div>';
+
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.add('show');
+}
+
+function switchSettingTab(tab) {
+  ['time', 'money', 'strategy', 'data'].forEach(function(t) {
+    const tabEl = document.getElementById('settingTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (t === tab) {
+      if (tabEl) tabEl.style.display = '';
+      if (btn) { btn.style.background = '#533483'; btn.style.color = '#fff'; }
+    } else {
+      if (tabEl) tabEl.style.display = 'none';
+      if (btn) { btn.style.background = '#2d2d44'; btn.style.color = '#aaa'; }
+    }
+  });
+}
+
+function switchReviewTab(tab) {
+  const tabs = ['winRate', 'profit', 'calibrate', 'trend'];
+  for (const t of tabs) {
+    const tabEl = document.getElementById('reviewTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const btn = document.getElementById('rankTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (t === tab) {
+      if (tabEl) tabEl.style.display = '';
+      if (btn) { btn.style.background = '#533483'; btn.style.color = '#fff'; }
+    } else {
+      if (tabEl) tabEl.style.display = 'none';
+      if (btn) { btn.style.background = '#2d2d44'; btn.style.color = '#aaa'; }
+    }
+  }
+}
+
+// ============================================================
+// 策略管理（启停 & 自定义）
+// ============================================================
+
+function toggleStrategy(name, enabled) {
+  state.strategyEnabled[name] = enabled;
+  saveState();
+  renderAll();
+}
+
+function addCustomStrategy() {
+  var name = document.getElementById('newCsName');
+  var desc = document.getElementById('newCsDesc');
+  var dir = document.getElementById('newCsDir');
+  var conf = document.getElementById('newCsConf');
+  if (!name || !name.value.trim()) { alert('请输入策略名称'); return; }
+  if (!state.customStrategies) state.customStrategies = [];
+  // 重名检查
+  for (var i = 0; i < state.customStrategies.length; i++) {
+    if (state.customStrategies[i].name === name.value.trim()) {
+      alert('已存在同名策略，请换一个名称');
+      return;
+    }
+  }
+  state.customStrategies.push({
+    name: name.value.trim(),
+    description: desc ? desc.value.trim() : '',
+    direction: dir ? dir.value : 'B',
+    confidence: conf ? conf.value : '高',
+    createdAt: Date.now()
+  });
+  // 默认启用
+  state.strategyEnabled[name.value.trim()] = true;
+  saveState();
+  // 刷新设置面板
+  openSettings();
+  alert('✅ 自定义策略「' + name.value.trim() + '」已添加！\n在路单下方点击"🎯 自定义"按钮即可在实战中使用。');
+}
+
+function deleteCustomStrategy(index) {
+  if (!state.customStrategies || index < 0 || index >= state.customStrategies.length) return;
+  var name = state.customStrategies[index].name;
+  if (!confirm('确定删除自定义策略「' + name + '」？相关统计数据仍保留在历史中。')) return;
+  state.customStrategies.splice(index, 1);
+  delete state.strategyEnabled[name];
+  saveState();
+  openSettings();
+}
+
+// 选择使用自定义策略（在路单下方调用）
+var _selectedCustomStrategy = null;
+function selectCustomStrategy() {
+  var customStrs = state.customStrategies || [];
+  if (customStrs.length === 0) {
+    alert('还没有自定义策略，请先在 ⚙️ 设置 → 📋 策略 中添加');
+    return;
+  }
+  // 弹出简易选择器
+  var list = customStrs.map(function(cs, idx) {
+    var enabled = state.strategyEnabled[cs.name] !== false;
+    return (enabled ? '' : '🚫 ') + cs.name + ' → ' + (cs.direction === 'B' ? '庄' : '闲');
+  }).join('\n');
+  var choice = prompt('选择要使用的自定义策略（输入编号 1-' + customStrs.length + '）：\n\n' + list);
+  if (!choice) return;
+  var idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= customStrs.length) {
+    alert('无效选择');
+    return;
+  }
+  var selected = customStrs[idx];
+  if (state.strategyEnabled[selected.name] === false) {
+    alert('该策略已关闭，请在设置中重新启用');
+    return;
+  }
+  _selectedCustomStrategy = selected.name;
+  // 更新下注建议显示
+  document.getElementById('betAdviceLabel').textContent = '🎯 自定义: ' + selected.name;
+  document.getElementById('betAdviceAction').textContent = '下注' + (selected.direction === 'B' ? '👑庄' : '👤闲');
+  document.getElementById('betAdviceAction').style.color = selected.direction === 'B' ? '#e94560' : '#4ecca3';
+  document.getElementById('betAdviceReason').textContent = '自定义策略模式 - 点击庄/闲记录时将使用此策略追踪';
+  document.getElementById('betAdviceStrategy').textContent = '💡 再次点击"🎯 自定义"可取消选择';
+}
+
+function clearCustomStrategySelection() {
+  _selectedCustomStrategy = null;
+  renderAll();
+}
+
+function updateSetting(key, value) {
+  state.settings[key] = value;
+  saveState();
+  renderAll();
+}
+
+// ============================================================
+// 快捷键
+// ============================================================
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT') return;
+  switch(e.key.toLowerCase()) {
+    case 'b': addResult('B'); break;
+    case 'p': addResult('P'); break;
+    case 't': addResult('T'); break;
+    case 'z': if (e.ctrlKey) undoResult(); break;
+    case 'u': undoResult(); break;
+  }
+});
+
+// ============================================================
+// 初始化
+// ============================================================
+initState();
+renderAll();
+
+// 定时器：每秒刷新倒计时/锁定状态
+setInterval(function() {
+  renderHeaderTimer();
+  renderAlerts();
+  renderLockState();
+  const lockEl = document.getElementById('lockTimerDisplay');
+  if (lockEl && state.locked && state.lockUntil) {
+    const remain = Math.max(0, Math.floor((state.lockUntil - Date.now()) / 1000));
+    lockEl.textContent = formatTime(remain);
+    if (remain <= 0 && state.locked) unlockSystem(false);
+  }
+  const coolEl = document.getElementById('coolDownDisplay');
+  if (coolEl && state.coolDownUntil) {
+    const remain = Math.max(0, Math.floor((state.coolDownUntil - Date.now()) / 1000));
+    coolEl.textContent = formatTime(remain);
+    if (remain <= 0) { state.coolDownUntil = null; renderAll(); }
+  }
+}, 1000);
+
+// 当页面准备好时，显示一些指南
+console.log('🃏 Alan|Baccarat实战系统 v2.0 - 复盘版');
+console.log('快捷键: B=庄 P=闲 T=和 U=撤销');
+console.log('核心思想: 多打闲避抽水 | 灵活切换策略 | 控制注码');
+</script>
+</body>
+</html>
