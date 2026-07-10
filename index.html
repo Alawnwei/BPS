@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Alan|Baccarat实战系统 v1.0</title>
+<title>Alan|Baccarat实战系统 v2.0</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -107,6 +107,11 @@ body {
   transition: all 0.15s;
   user-select: none;
 }
+@media (max-width: 480px) {
+  .road-board { gap: 2px; padding: 4px; }
+  .road-cell { width: 32px; height: 32px; font-size: 11px; }
+  .road-cell.empty { display: none; }
+}
 .road-cell.B {
   background: #e94560;
   color: #fff;
@@ -160,6 +165,10 @@ body {
 .btn-undo { background: #533483; color: #fff; }
 .btn-clear { background: #2d2d44; color: #aaa; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
+@media (max-width: 480px) {
+  .btn { padding: 10px 14px; font-size: 14px; touch-action: manipulation; }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+}
 
 /* ===== 策略建议 ===== */
 .strategy-section {
@@ -373,6 +382,61 @@ body {
   font-size: 11px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+
+/* ===== 三路显示 ===== */
+.three-road-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 2px 0;
+}
+.three-road-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: bold;
+  margin: 1px;
+  flex-shrink: 0;
+}
+.three-road-dot.R {
+  background: #e94560;
+  color: #fff;
+  box-shadow: 0 0 4px rgba(233,69,96,0.3);
+}
+.three-road-dot.B {
+  background: #4ecca3;
+  color: #fff;
+  box-shadow: 0 0 4px rgba(78,204,163,0.3);
+}
+.three-road-label {
+  font-size: 10px;
+  color: #888;
+  min-width: 36px;
+  display: inline-block;
+}
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 480px) {
+  .strategy-card .desc { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .strategy-card .title { font-size: 12px; }
+  .strategy-card .label { font-size: 10px; }
+  .setting-row label { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+  .modal-box { padding: 14px; max-width: 95%; }
+  .header h1 { font-size: 15px; }
+  .header .stats span { font-size: 11px; padding: 2px 6px; }
+  .stats-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .stat-item .stat-num { font-size: 13px; }
+  .stat-item .stat-label { font-size: 9px; }
+  .bankroll-box input { width: 60px; font-size: 11px; }
+  .container { gap: 6px; }
+  .panel { padding: 8px; }
+  .panel-title { font-size: 12px; }
+  .ref-grid { max-height: 200px; }
+}
 </style>
 </head>
 <body>
@@ -383,9 +447,11 @@ body {
   <div class="stats">
     <span>本金: <span class="num" id="hdBankroll">10000</span></span>
     <span>盈利: <span class="num" id="hdProfit">0</span></span>
-    <span>局数: <span class="num" id="hdRounds">0</span></span>
+    <span>总手: <span class="num" id="hdRounds">0</span></span>
+    <span>实战: <span class="num" id="hdLiveRounds" style="color:#ffd93d;">0</span></span>
   </div>
   <div style="display:flex;gap:4px;margin-top:4px;width:100%;">
+    <span id="modeLabel" style="font-size:11px;align-self:center;padding:2px 8px;border-radius:4px;background:#2d2d44;color:#aaa;">📋 铺牌模式</span>
     <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="openSettings()">⚙️ 设置</button>
     <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="openReview()">📊 复盘</button>
     <button class="btn btn-sm" style="background:#2d2d44;color:#ffd93d;" onclick="if(confirm('结束当前会话并保存？'))endSession(true)">📥 结束保存</button>
@@ -401,6 +467,8 @@ body {
   <div style="background:rgba(233,69,96,0.12);border:1px solid rgba(233,69,96,0.25);border-radius:8px;padding:6px 14px;display:flex;align-items:center;gap:8px;">
     <span style="font-size:16px;" id="alertIcon">⚠️</span>
     <span style="font-size:13px;color:#e0e0e0;flex:1;" id="alertText"></span>
+    <span id="lockTimerDisplay" style="font-size:11px;color:#ffd93d;display:none;"></span>
+    <span id="coolDownDisplay" style="font-size:11px;color:#4ecca3;display:none;"></span>
     <button id="alertActionBtn" style="display:none;background:#533483;border:none;border-radius:4px;color:#fff;font-size:11px;padding:3px 8px;cursor:pointer;" onclick="unlockSystem(true)">🔓 解锁</button>
     <span onclick="dismissAlert()" style="cursor:pointer;font-size:16px;color:#888;padding:0 4px;">✕</span>
   </div>
@@ -421,6 +489,8 @@ body {
       <button class="btn btn-undo btn-sm" onclick="undoResult()">↩ 撤销</button>
       <button class="btn btn-clear btn-sm" onclick="clearRoad()">✕ 清空</button>
       <button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="selectCustomStrategy()" id="btnCustomStrategy">🎯 自定义</button>
+      <button class="btn btn-sm" style="background:#1a6b4a;color:#fff;" onclick="openBatchInput()" id="btnBatchInput">📋 铺牌导入</button>
+      <button class="btn btn-sm" style="background:#e94560;color:#fff;display:none;" onclick="startLiveMode()" id="btnStartLive">🎮 开始实战</button>
     </div>
     <!-- 状态信息 -->
     <div class="status-bar" id="statusBar">
@@ -475,6 +545,11 @@ body {
           <div class="stat-num" id="statStreak">0</div>
           <div class="stat-label">当前连</div>
         </div>
+      </div>
+      <!-- 庄闲比例量化 -->
+      <div id="ratioBar" style="margin-top:4px;height:14px;background:rgba(233,69,96,0.15);border-radius:7px;position:relative;overflow:hidden;display:none;">
+        <div id="ratioBarFill" style="height:100%;background:#e94560;border-radius:7px;transition:width 0.3s;width:50%;"></div>
+        <div id="ratioBarLabel" style="position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:8px;line-height:14px;color:#fff;font-weight:bold;text-shadow:0 0 3px rgba(0,0,0,0.8);">50:50</div>
       </div>
     </div>
 
@@ -634,7 +709,9 @@ const DEFAULT_SETTINGS = {
   takeProfitSoftPct: 10,   // 盈利%触发软提醒
   hardLimitLock: true,     // 达到硬限制后锁定下注
   dailyLossLimit: 0,       // 日亏损上限，0=不限制
-  rebateRate: 0.008        // 返水比例，默认0.8%
+  rebateRate: 0.008,       // 返水比例，默认0.8%
+  betSizingMode: 'fixed',  // 'fixed' | 'kelly'  注码模式
+  kellyFraction: 0.25      // 分数凯利比例，默认25%
 };
 
 // 默认每日统计
@@ -672,6 +749,9 @@ function initState() {
     state.customStrategies = state.customStrategies || [];
     state.chaseState = state.chaseState || null;
     state.chaseStats = state.chaseStats || {};
+    state.selectedCustomStrategy = state.selectedCustomStrategy || null;
+    state.preloadCount = state.preloadCount || 0;
+    state.isLiveMode = state.isLiveMode || false;
   } else {
     state = {
       road: [],
@@ -700,7 +780,10 @@ function initState() {
       strategyEnabled: {},
       customStrategies: [],
       chaseState: null,
-      chaseStats: {}
+      chaseStats: {},
+      selectedCustomStrategy: null,
+      preloadCount: 0,
+      isLiveMode: false
     };
   }
   // 每日统计日期检查
@@ -1321,7 +1404,7 @@ function analyze() {
       if (currentIdx < position) positionType = '前位';
       else if (currentIdx < position * 2) positionType = '中位';
       // 根据位置调整信心
-      const posConfMap = { '前位': '中', '中位': '中-高', '后位': '中' };
+      const posConfMap = { '前位': '中-高', '中位': '高', '后位': '中-高' };
       signals.push({
         type: 'cut_dragon',
         subtype: streakType,
@@ -1509,12 +1592,12 @@ function analyze() {
             const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
             const failCount = state.strategyFailures['长龙回头不过3'] || 0;
             const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
-            const confBase = hasDoubleDragon ? '中' : '高';
-            const confMap = { 0: confBase, 1: '中', 2: '低', 3: '极低' };
-            const fConf = confMap[failCount > 3 ? 3 : failCount] || '低';
+            const confBase = hasDoubleDragon ? '极低' : '低';
+            const confMap = { 0: confBase, 1: '低', 2: '极低', 3: '极低' };
+            const fConf = confMap[failCount > 3 ? 3 : failCount] || '极低';
             suggestions.push({
               title: '🐉 长龙回头不过' + maxGun + hasDD + failNote,
-              desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断 → 打' + (opposite === 'B' ? '庄' : '闲') + '，赌不过' + maxGun + (hasDoubleDragon ? '（双联龙慎用）' : '') + (failCount > 0 ? '（最近已失败' + failCount + '次，谨慎）' : ''),
+              desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断 → 打' + (opposite === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅33.3%，谨慎）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '已失败' + failCount + '次' : ''),
               action: opposite,
               actionLabel: '下注' + (opposite === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
               confidence: fConf,
@@ -1535,12 +1618,12 @@ function analyze() {
           const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
           const failCount = state.strategyFailures['长龙回头不过3'] || 0;
           const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
-          const confBase = hasDoubleDragon ? '中' : '高';
-          const confMap = { 0: confBase, 1: '中', 2: '低', 3: '极低' };
-          const fConf = confMap[failCount > 3 ? 3 : failCount] || '低';
+          const confBase = hasDoubleDragon ? '极低' : '低';
+          const confMap = { 0: confBase, 1: '低', 2: '极低', 3: '极低' };
+          const fConf = confMap[failCount > 3 ? 3 : failCount] || '极低';
           suggestions.push({
             title: '🐉 长龙回头不过' + bdMaxGun + hasDD + failNote,
-            desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '→' + (sig.breakType === 'B' ? '庄' : '闲') + '已断，打' + (bdOpp === 'B' ? '庄' : '闲') + '赌不过' + bdMaxGun + '（当前打断' + sig.breakLength + '连）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '最近已失败' + failCount + '次' : ''),
+            desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '→' + (sig.breakType === 'B' ? '庄' : '闲') + '已断，打' + (bdOpp === 'B' ? '庄' : '闲') + '（⚠️准确率仅33.3%，已降级）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '已失败' + failCount + '次' : ''),
             action: bdOpp,
             actionLabel: '下注' + (bdOpp === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
             confidence: fConf,
@@ -1571,10 +1654,10 @@ function analyze() {
         const opp = sig.streak;
         suggestions.push({
           title: '🔢 三一式打法',
-          desc: '3' + (sig.streak === 'B' ? '庄' : '闲') + '+1' + (sig.opposite === 'B' ? '庄' : '闲') + ' → 打' + (opp === 'B' ? '庄' : '闲') + '，负追两枪',
+          desc: '3' + (sig.streak === 'B' ? '庄' : '闲') + '+1' + (sig.opposite === 'B' ? '庄' : '闲') + ' → 打' + (opp === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅38.8%，已降级）',
           action: opp,
           actionLabel: '下注' + (opp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '高',
+          confidence: '低',
           strategy: '三一式打法',
           type: '负追'
         });
@@ -1708,10 +1791,38 @@ function analyze() {
         const ppOpp = sig.pair2 === 'B' ? 'P' : 'B';
         suggestions.push({
           title: '🔲 排排连高端玩法',
-          desc: '形成' + (sig.start === 'B' ? '庄' : '闲') + (sig.start === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + ' → 关注122或排排连',
+          desc: '形成' + (sig.start === 'B' ? '庄' : '闲') + (sig.start === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + ' → ⚠️数据证实此策略显著差于随机(胜率31.5%)',
           action: ppOpp,
           actionLabel: '下注' + (ppOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '极低',
+          strategy: '排排连高端玩法',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'one_room_break': {
+        const orbOpp = sig.pair === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🔺 一房带两厅已断',
+          desc: '一房带两厅(' + (sig.first === 'B' ? '庄' : '闲') + '+' + (sig.pair === 'B' ? '庄庄' : '闲闲') + ')断裂 → 打' + (orbOpp === 'B' ? '庄' : '闲') + '赌它断',
+          action: orbOpp,
+          actionLabel: '下注' + (orbOpp === 'B' ? '👑庄' : '👤闲'),
           confidence: '中',
+          strategy: '一四式三角形',
+          type: '负追'
+        });
+        break;
+      }
+
+      case 'one_two_two': {
+        const ottOpp = sig.e === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '📊 122信号关注',
+          desc: '形成' + (sig.a === 'B' ? '庄' : '闲') + '+' + (sig.b === 'B' ? '庄' : '闲') + (sig.b === 'B' ? '庄' : '闲') + '+' + (sig.d === 'B' ? '庄' : '闲') + (sig.d === 'B' ? '庄' : '闲') + ' → ⚠️此策略准确率仅31.5%，已降级',
+          action: ottOpp,
+          actionLabel: '下注' + (ottOpp === 'B' ? '👑庄' : '👤闲'),
+          confidence: '极低',
           strategy: '排排连高端玩法',
           type: '负追'
         });
@@ -1851,8 +1962,8 @@ function analyze() {
     if (dirs.length >= 2) {
       // 策略级优先级（同信心时按此排序）
       const sp = {
-        '单跳长龙不过3': 0, '长龙回头不过3': 1, '反规律打法': 2,
-        '一四式三角形': 3, '三一式打法': 4, '排排连高端玩法': 5,
+        '单跳长龙不过3': 0, '长龙回头不过3': 8, '反规律打法': 2,
+        '一四式三角形': 3, '三一式打法': 8, '排排连高端玩法': 9,
         '金手指打法': 6, '王者单跳': 7, '长龙观望': 8, '不输为赢': 9,
         '斩龙/三断长龙': 2, '长龙回头龙尾跳': 3, '交叉性组合打法': 4, '大三打法': 5,
         '双跳狙击型': 6, '预测长龙': 8
@@ -1893,6 +2004,19 @@ function analyze() {
   suggestions = suggestions.filter(function(s) {
     return state.strategyEnabled[s.strategy] !== false;
   });
+
+  // 检查是否所有策略都被禁用了
+  if (suggestions.length === 0 && state.road.length >= 3) {
+    suggestions.push({
+      title: '⚠️ 所有策略已禁用',
+      desc: '请在 ⚙️ 设置 → 📋 策略 中启用至少一个策略',
+      action: null,
+      actionLabel: '⚙️ 去设置启用',
+      confidence: '极低',
+      strategy: '不输为赢',
+      type: '观望'
+    });
+  }
 
   // --- 负追续追覆盖：如果当前有活跃负追，覆盖推荐 ---
   if (state.chaseState && state.chaseState.gunsUsed < state.chaseState.maxGuns) {
@@ -1984,6 +2108,39 @@ function renderStats() {
     }
   }
   document.getElementById('statStreak').textContent = streak;
+
+  // 庄闲比例量化指标
+  const ratioBar = document.getElementById('ratioBar');
+  const ratioFill = document.getElementById('ratioBarFill');
+  if (total >= 5 && ratioBar && ratioFill) {
+    ratioBar.style.display = '';
+    // 庄比例作为偏差指标（50% = 均衡）
+    var bPct = bCount / total;
+    var barWidth = Math.round(bPct * 100);
+    // 限制在5%-95%之间
+    barWidth = Math.max(5, Math.min(95, barWidth));
+    ratioFill.style.width = barWidth + '%';
+    // 颜色：越接近50%越绿，越偏离越红
+    var deviation = Math.abs(bPct - 0.5) * 2; // 0=均衡, 1=极端
+    var rVal = Math.round(78 + deviation * 135); // 78→213
+    var gVal = Math.round(204 - deviation * 150); // 204→54
+    ratioFill.style.background = 'rgb(' + rVal + ',' + gVal + ',99)';
+    // 标签
+    var label = '庄' + (bPct * 100).toFixed(0) + '% : ' + ((1 - bPct) * 100).toFixed(0) + '%闲';
+    // 偏差等级
+    var devLevel = '';
+    if (deviation < 0.15) devLevel = '均衡';
+    else if (deviation < 0.3) devLevel = '轻微偏差';
+    else if (deviation < 0.5) devLevel = '显著偏差';
+    else devLevel = '严重偏差⚠️';
+    var devColor = deviation < 0.3 ? '#4ecca3' : (deviation < 0.5 ? '#ffd93d' : '#e94560');
+    ratioBar.title = label + ' | ' + devLevel;
+    ratioBar.style.border = '1px solid ' + devColor;
+    var labelEl = document.getElementById('ratioBarLabel');
+    if (labelEl) labelEl.textContent = label;
+  } else if (ratioBar) {
+    ratioBar.style.display = 'none';
+  }
 }
 
 function renderStatusBar() {
@@ -2024,6 +2181,15 @@ function renderStatusBar() {
   if (state.chaseState) {
     var remainGuns = state.chaseState.maxGuns - state.chaseState.gunsUsed;
     items.push('<span class="status-item"><span class="status-dot yellow"></span> 🔥 负追 ' + state.chaseState.strategy + ' 第' + (state.chaseState.gunsUsed + 1) + '枪/' + state.chaseState.maxGuns + '</span>');
+  }
+
+  // 三路状态摘要
+  if (nr.length >= 5) {
+    var trObj = calculateThreeRoads(r);
+    var trAnalysis = analyzeThreeRoads(trObj);
+    var iconMap = { strong: '🟢', good: '🟡', neutral: '⚪', caution: '🔵', weak: '⚫' };
+    var trIcon = iconMap[trAnalysis.level] || '⚪';
+    items.push('<span class="status-item">🔍 三路: ' + trIcon + ' ' + trAnalysis.label + '</span>');
   }
 
   bar.innerHTML = items.join('');
@@ -2093,6 +2259,37 @@ function getRollingWR(strategyName) {
   return wins / recent.length;
 }
 
+// 凯利公式计算最优注码比例
+// Kelly% = (b × p - q) / b
+// b=赔率(庄0.95/闲1.0) p=胜率 q=败率
+function calculateKellyBet(strategyName, direction, capital) {
+  if (state.settings.betSizingMode !== 'kelly') return null;
+  // 从累计统计获取策略胜率
+  var stats = state.sessionStats.strategyStats[strategyName];
+  // 也查历史会话
+  if (!stats || stats.count < 5) {
+    // 合并所有已完成会话的数据
+    var totalW = 0, totalC = 0;
+    for (var ksi = 0; ksi < state.completedSessions.length; ksi++) {
+      var cs = state.completedSessions[ksi];
+      var sstat = cs.sessionStats ? cs.sessionStats.strategyStats : null;
+      if (sstat && sstat[strategyName]) {
+        totalW += sstat[strategyName].wins || 0;
+        totalC += sstat[strategyName].count || 0;
+      }
+    }
+    if (totalC < 5) return null; // 数据不足
+    stats = { wins: totalW, count: totalC };
+  }
+  var p = stats.wins / stats.count; // 胜率
+  var q = 1 - p;
+  var b = direction === 'P' ? 1.0 : 0.95; // 闲1:1, 庄0.95:1(抽水)
+  var kelly = (b * p - q) / b;
+  if (kelly <= 0) return 0; // 凯利建议不下注
+  var fraction = state.settings.kellyFraction || 0.25;
+  return Math.round(capital * kelly * fraction);
+}
+
 // 信心等级 → 赔率级别（四级映射）
 // 考虑滚动胜率衰退自动降级
 function confToTier(confidence, strategyName) {
@@ -2145,10 +2342,25 @@ function renderBetAdvice() {
   const actionText = sug.actionLabel;
   const actionColor = sug.action === 'B' ? '#e94560' : '#4ecca3';
 
-  // 根据信心查赔率级别 → 算推荐注码（考虑衰退降级）
-  const tier = confToTier(sug.confidence, sug.strategy);
-  const recommendedBet = Math.round(state.capital * tier.pct);
-  const tierColor = tier.pct >= 0.12 ? '#ff6b9d' : (tier.pct >= 0.08 ? '#e94560' : (tier.pct >= 0.05 ? '#ffd93d' : '#4ecca3'));
+  // 凯利公式覆盖注码计算
+  var useKelly = state.settings.betSizingMode === 'kelly';
+  var kellyBet = useKelly ? calculateKellyBet(sug.strategy, sug.action, state.capital) : null;
+  var tier = confToTier(sug.confidence, sug.strategy);
+  var recommendedBet, tierColor, tierLabel;
+
+  if (useKelly && kellyBet !== null && kellyBet > 0) {
+    recommendedBet = kellyBet;
+    tierLabel = '📐 凯利(' + (state.settings.kellyFraction * 100) + '%)';
+    tierColor = '#9b59b6';
+  } else if (useKelly && kellyBet !== null && kellyBet === 0) {
+    recommendedBet = 0;
+    tierLabel = '📐 凯利建议不下注（胜率过低）';
+    tierColor = '#888';
+  } else {
+    recommendedBet = Math.round(state.capital * tier.pct);
+    tierColor = tier.pct >= 0.12 ? '#ff6b9d' : (tier.pct >= 0.08 ? '#e94560' : (tier.pct >= 0.05 ? '#ffd93d' : '#4ecca3'));
+    tierLabel = '→ ' + tier.label;
+  }
 
   // 失败追踪 + 滚动胜率
   const failCount = state.strategyFailures[sug.strategy] || 0;
@@ -2162,15 +2374,17 @@ function renderBetAdvice() {
       ? '<div style="font-size:11px;color:#e94560;margin-top:2px;">🔻 衰退警告：近15次胜率仅' + (rollingWR * 100).toFixed(0) + '%，系统已自动降级</div>'
       : '');
 
-  // 对齐等级标识
-  const tierNames = ['', '🥇 一级·平推 3%', '🥈 二级·中赔率 5%', '🥉 三级·高赔率 8%', '💎 四级·极高赔率 12%'];
+  var kellyInfo = (useKelly && kellyBet !== null && kellyBet > 0)
+    ? '<div style="font-size:10px;color:#9b59b6;margin-top:1px;">📐 Kelly%=' + (kellyBet / state.capital * 100).toFixed(1) + '% 基于' + (sug.strategy) + '历史胜率</div>'
+    : '';
 
   panel.innerHTML =
     '<div style="font-size:20px;font-weight:bold;color:' + actionColor + ';" id="betAdviceAction">' + actionText + '</div>' +
     '<div style="font-size:12px;color:#aaa;margin-top:2px;">' + sug.title + '</div>' +
     '<div style="font-size:11px;color:#666;margin-top:4px;">🎯 当前策略: <b style="color:#e0e0e0;">' + sug.strategy + '</b> · ' + sug.type + '</div>' +
-    '<div style="font-size:15px;font-weight:bold;color:' + tierColor + ';margin-top:5px;">' + tier.icon + ' 推荐注码: <span style="font-size:17px;">' + recommendedBet.toLocaleString() + '</span></div>' +
-    '<div style="font-size:11px;color:#888;margin-top:1px;">→ ' + tier.label + '</div>' +
+    '<div style="font-size:15px;font-weight:bold;color:' + tierColor + ';margin-top:5px;">' + (useKelly ? '📐' : tier.icon) + ' 推荐注码: <span style="font-size:17px;">' + recommendedBet.toLocaleString() + '</span></div>' +
+    '<div style="font-size:11px;color:#888;margin-top:1px;">' + tierLabel + '</div>' +
+    kellyInfo +
     rollingHtml +
     '<div style="font-size:11px;color:#555;margin-top:2px;">' + sug.desc + '</div>' +
     failHtml;
@@ -2244,6 +2458,30 @@ function renderBankroll() {
   document.getElementById('hdProfit').textContent = (pl >= 0 ? '+' : '') + pl.toLocaleString();
   document.getElementById('hdProfit').className = 'num' + (pl >= 0 ? '' : ' red');
   document.getElementById('hdRounds').textContent = state.road.length;
+  const liveRounds = state.road.length - state.preloadCount;
+  document.getElementById('hdLiveRounds').textContent = state.isLiveMode ? Math.max(0, liveRounds) : 0;
+
+  // 更新模式标签
+  const modeLabel = document.getElementById('modeLabel');
+  if (state.isLiveMode) {
+    modeLabel.textContent = '🎮 实战模式';
+    modeLabel.style.background = 'rgba(233,69,96,0.2)';
+    modeLabel.style.color = '#e94560';
+  } else if (state.road.length > 0 && state.preloadCount === 0) {
+    modeLabel.textContent = '📋 铺牌中... (' + state.road.length + '手)';
+    modeLabel.style.background = 'rgba(78,204,163,0.15)';
+    modeLabel.style.color = '#4ecca3';
+  } else {
+    modeLabel.textContent = '📋 铺牌模式';
+    modeLabel.style.background = '#2d2d44';
+    modeLabel.style.color = '#aaa';
+  }
+
+  // 显示/隐藏 开始实战按钮
+  const btnStartLive = document.getElementById('btnStartLive');
+  if (btnStartLive) {
+    btnStartLive.style.display = (state.road.length > 0 && !state.isLiveMode) ? 'inline-block' : 'none';
+  }
 }
 
 function clearRoad() {
@@ -2256,6 +2494,8 @@ function clearRoad() {
   state.sessionLog = [];
   state.sessionStart = Date.now();
   state.alertsCleared = false;
+  state.isLiveMode = false;
+  state.preloadCount = 0;
   state.sessionStats = {
     roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
   };
@@ -2359,6 +2599,144 @@ function formatDuration(ms) {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return m + '分' + s + '秒';
+}
+
+// ============================================================
+// 三路（大眼/小/蟑螂）计算
+// ============================================================
+
+// 从大路提取列结构（过滤和）
+function buildColumns(road) {
+  var nr = [];
+  for (var ci = 0; ci < road.length; ci++) {
+    if (road[ci] !== 'T') nr.push(road[ci]);
+  }
+  var cols = [];
+  var cur = [];
+  for (var ci = 0; ci < nr.length; ci++) {
+    if (ci === 0 || nr[ci] === nr[ci-1]) {
+      cur.push(nr[ci]);
+    } else {
+      cols.push(cur);
+      cur = [nr[ci]];
+    }
+  }
+  if (cur.length > 0) cols.push(cur);
+  return cols;
+}
+
+// 三路比较：参考列1个→红；当前列1个→蓝；否则比深度
+function compareRoad(col, refCol) {
+  if (!col || col.length === 0) return null;
+  if (!refCol || refCol.length === 0) return 'R';
+  if (refCol.length === 1) return 'R';  // 参考列只有1个 → 红
+  if (col.length === 1) return 'B';     // 当前列只有1个 → 蓝
+  return col.length >= refCol.length ? 'R' : 'B'; // 比深度
+}
+
+// 计算三路
+function calculateThreeRoads(road) {
+  var cols = buildColumns(road);
+  var bigEye = [], small = [], cockroach = [];
+  // 大眼路：第N列 vs 第N-1列，从第3列开始
+  for (var i = 2; i < cols.length; i++) bigEye.push(compareRoad(cols[i], cols[i-1]));
+  // 小路：第N列 vs 第N-2列，从第4列开始
+  for (var i = 3; i < cols.length; i++) small.push(compareRoad(cols[i], cols[i-2]));
+  // 蟑螂路：第N列 vs 第N-3列，从第5列开始
+  for (var i = 4; i < cols.length; i++) cockroach.push(compareRoad(cols[i], cols[i-3]));
+  return { bigEye: bigEye, small: small, cockroach: cockroach, colCount: cols.length };
+}
+
+// 生成三路HTML（红蓝圆点）
+function renderThreeRoadsHTML(threeRoads) {
+  var roads = [
+    { label: '大眼路', data: threeRoads.bigEye },
+    { label: '小路', data: threeRoads.small },
+    { label: '蟑螂路', data: threeRoads.cockroach }
+  ];
+  var html = '';
+  for (var ri = 0; ri < roads.length; ri++) {
+    html += '<div style="display:flex;align-items:center;gap:2px;margin:1px 0;">';
+    html += '<span class="three-road-label">' + roads[ri].label + '</span>';
+    html += '<span class="three-road-wrap">';
+    for (var di = 0; di < roads[ri].data.length; di++) {
+      var d = roads[ri].data[di];
+      html += '<span class="three-road-dot ' + d + '">' + (d === 'R' ? '◉' : '◎') + '</span>';
+    }
+    html += '</span></div>';
+  }
+  return html;
+}
+
+// 三路交叉验证分析
+function analyzeThreeRoads(threeRoads) {
+  var be = threeRoads.bigEye;
+  var sm = threeRoads.small;
+  var cr = threeRoads.cockroach;
+  // 取最近4个标记进行分析
+  var recentBE = be.slice(-4);
+  var recentSM = sm.slice(-4);
+  var recentCR = cr.slice(-4);
+  // 计算各路的红率
+  function redRate(arr) {
+    if (!arr || arr.length === 0) return 0.5;
+    return arr.filter(function(d) { return d === 'R'; }).length / arr.length;
+  }
+  var beRate = redRate(recentBE);
+  var smRate = redRate(recentSM);
+  var crRate = redRate(recentCR);
+  // 三路一致性
+  var allAgree = (be.length > 0 && sm.length > 0 && cr.length > 0) &&
+    be[be.length-1] === sm[sm.length-1] && sm[sm.length-1] === cr[cr.length-1];
+  var beVsSm = be.length > 0 && sm.length > 0 ? (be[be.length-1] === sm[sm.length-1]) : true;
+  // 综合判断
+  var totalRed = redRate(be) + redRate(sm) + redRate(cr);
+  var verdict = {};
+  if (be.length < 2 || sm.length < 2) {
+    verdict = { label: '数据不足', level: 'info', color: '#888' };
+  } else if (allAgree && totalRed >= 2.5) {
+    verdict = { label: '三路同色·趋势极强 ✅', level: 'strong', color: '#4ecca3' };
+  } else if (allAgree && totalRed < 1.5) {
+    verdict = { label: '三路同色·趋势极弱 ❌', level: 'weak', color: '#e94560' };
+  } else if (beVsSm && totalRed >= 2) {
+    verdict = { label: '短期趋势延续 ⚡', level: 'good', color: '#ffd93d' };
+  } else if (!beVsSm && totalRed < 2) {
+    verdict = { label: '趋势分歧·观望 ⏳', level: 'caution', color: '#e94560' };
+  } else if (beRate > 0.6 && smRate > 0.6) {
+    verdict = { label: '中长线看好 📈', level: 'good', color: '#4ecca3' };
+  } else if (beRate < 0.4 && smRate < 0.4) {
+    verdict = { label: '中长线走弱 📉', level: 'caution', color: '#e94560' };
+  } else {
+    verdict = { label: '震荡格局 ➡️', level: 'neutral', color: '#888' };
+  }
+  // 操作建议
+  var action = '';
+  if (verdict.level === 'strong') action = '🔴 适合重注，大路策略可放心执行';
+  else if (verdict.level === 'good') action = '🟡 正常下注，缩短负追枪数至2枪';
+  else if (verdict.level === 'neutral') action = '⚪ 只打单跳，轻注平推';
+  else if (verdict.level === 'caution') action = '🔵 暂停下注或极小注试探';
+  else if (verdict.level === 'weak') action = '⚫ 强烈建议观望，不要出手';
+  verdict.action = action;
+  verdict.totalRed = totalRed;
+  return verdict;
+}
+
+// 渲染完整三路分析面板HTML
+function renderThreeRoadPanel(road) {
+  var tr = calculateThreeRoads(road);
+  var analysis = analyzeThreeRoads(tr);
+  var html = '<div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:6px 8px;margin:6px 0;">';
+  html += '<div style="font-size:12px;font-weight:bold;color:#ffd93d;margin-bottom:4px;">🔍 三路交叉验证</div>';
+  html += renderThreeRoadsHTML(tr);
+  html += '<div style="margin-top:4px;padding:3px 6px;background:rgba(0,0,0,0.2);border-radius:4px;font-size:11px;color:' + analysis.color + ';">';
+  html += '<b>' + analysis.label + '</b>';
+  html += '</div>';
+  html += '<div style="margin-top:2px;font-size:10px;color:#aaa;">' + analysis.action + '</div>';
+  if (tr.colCount < 5) {
+    html += '<div style="font-size:10px;color:#666;margin-top:2px;">⏳ 至少需要5列数据才能显示三路（当前' + tr.colCount + '列）</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 // ============================================================
@@ -2499,24 +2877,25 @@ function renderAlerts() {
     }
   }
 
-  // 5. 盈亏限制检查
+  // 5. 盈亏限制检查（当 hardLimitLock 关闭时仅提醒不锁定）
   if (!state.locked) {
     const stopLossHard = state.settings.stopLossPct;
     const stopLossSoft = state.settings.stopLossSoftPct;
     const takeProfitHard = state.settings.takeProfitPct;
     const takeProfitSoft = state.settings.takeProfitSoftPct;
 
+    var shouldLock = state.settings.hardLimitLock !== false;
+
     if (stopLossHard > 0 && ratio <= 1 - stopLossHard / 100) {
-      lockSystem('stop_loss');
-      return;
+      if (shouldLock) { lockSystem('stop_loss'); return; }
+      else msgs.push({ icon: '🔴', text: '🛑 已达止损线(' + stopLossHard + '%)，建议停止游戏（硬锁定已关闭，请自律）' });
     } else if (stopLossSoft > 0 && ratio <= 1 - stopLossSoft / 100) {
       msgs.push({ icon: '🟡', text: '⚠️ 注意：资金已亏' + Math.round((1 - ratio) * 100) + '%，接近止损线，控制风险' });
     }
 
     if (takeProfitHard > 0 && ratio >= 1 + takeProfitHard / 100) {
-      state._renderingAlerts = false;
-      lockSystem('take_profit');
-      return;
+      if (shouldLock) { state._renderingAlerts = false; lockSystem('take_profit'); return; }
+      else msgs.push({ icon: '🟢', text: '💰 已达止盈线(' + takeProfitHard + '%)，建议收手（硬锁定已关闭，请自律）' });
     } else if (takeProfitSoft > 0 && ratio >= 1 + takeProfitSoft / 100) {
       msgs.push({ icon: '🟢', text: '📈 已盈利' + Math.round((ratio - 1) * 100) + '%，接近止盈目标，可考虑收手' });
     }
@@ -2524,9 +2903,8 @@ function renderAlerts() {
     // 每日亏损上限
     const dailyLoss = state.settings.dailyLossLimit;
     if (dailyLoss > 0 && state.dailyStats.totalPL <= -dailyLoss) {
-      state._renderingAlerts = false;
-      lockSystem('daily_loss');
-      return;
+      if (shouldLock) { state._renderingAlerts = false; lockSystem('daily_loss'); return; }
+      else msgs.push({ icon: '🔴', text: '📉 已达日亏损上限(' + dailyLoss.toLocaleString() + ')，建议明日再战（硬锁定已关闭，请自律）' });
     }
   }
 
@@ -2664,6 +3042,103 @@ function getChaseLabel() {
 }
 
 // ============================================================
+// 铺牌/实战模式管理
+// ============================================================
+
+// 打开批量导入铺牌弹窗
+function openBatchInput() {
+  const modal = document.getElementById('modalOverlay');
+  document.getElementById('modalTitle').textContent = '📋 铺牌批量导入';
+  const currentLen = state.road.length;
+  let html = '<p>将已经开出的牌路结果粘贴到下面，系统会自动识别并铺好。</p>';
+  html += '<p style="font-size:11px;color:#ffd93d;">支持格式：庄庄闲庄庄闲和闲闲庄 或 BBBPBBPTPPBB<br>（字母 B=庄 P=闲 T=和，空格和逗号自动忽略）</p>';
+  html += '<textarea id="batchInputArea" style="width:100%;height:120px;background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#fff;padding:10px;font-size:14px;resize:vertical;" placeholder="例如：BBBPBBPTPBB&#10;或：庄庄庄闲庄庄闲和闲庄庄"></textarea>';
+  if (currentLen > 0) {
+    html += '<p style="margin-top:6px;font-size:12px;color:#aaa;">当前已有 ' + currentLen + ' 手，导入将追加在后面。</p>';
+  }
+  html += '<div style="margin-top:10px;display:flex;gap:6px;">';
+  html += '<button class="btn btn-sm" style="background:#4ecca3;color:#fff;flex:1;" onclick="confirmBatchInput()">✅ 确认铺牌</button>';
+  html += '<button class="btn btn-sm" style="background:#2d2d44;color:#aaa;" onclick="closeModal()">取消</button>';
+  html += '</div>';
+  html += '<div id="batchPreview" style="margin-top:8px;font-size:12px;color:#888;"></div>';
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.add('show');
+  // 自动聚焦
+  setTimeout(function() { document.getElementById('batchInputArea').focus(); }, 100);
+}
+
+// 确认批量导入
+function confirmBatchInput() {
+  const text = document.getElementById('batchInputArea').value.trim();
+  if (!text) { alert('请先输入牌路数据'); return; }
+  batchInputRoad(text);
+}
+
+// 批量铺牌：解析文本并插入路单
+function batchInputRoad(text) {
+  // 支持格式：庄庄闲庄庄闲和闲闲庄 或 BBBPBBPTPPBB
+  // 先尝试字母格式 (B/P/T)
+  let seq = text.toUpperCase().replace(/[\s,，、]+/g, '');
+  // 只保留有效字符，过滤掉所有无关文字（如"第3局"里的BPT会被误读）
+  const validChars = seq.replace(/[^BPT庄闲和]/g, '');
+  if (validChars.length > 0) {
+    seq = validChars;
+  }
+  let parsed = [];
+  // 逐字符解析
+  for (let i = 0; i < seq.length; i++) {
+    const ch = seq[i];
+    if (ch === 'B' || ch === '庄') parsed.push('B');
+    else if (ch === 'P' || ch === '闲') parsed.push('P');
+    else if (ch === 'T' || ch === '和') parsed.push('T');
+  }
+  if (parsed.length === 0) {
+    alert('❌ 未能识别出有效的牌路数据，请使用 B/P/T 或 庄/闲/和 格式');
+    return;
+  }
+  if (parsed.length > 200) {
+    if (!confirm('⚠️ 导入 ' + parsed.length + ' 手数据，数量较大，确认继续？')) return;
+  }
+
+  // 逐手插入（铺牌模式不计盈亏，批量导入时禁止逐手渲染）
+  const wasLive = state.isLiveMode;
+  state.isLiveMode = false;
+  state._suppressRender = true; // 禁止逐手渲染
+  for (let i = 0; i < parsed.length; i++) {
+    addResult(parsed[i]);
+  }
+  state._suppressRender = false;
+  // 如果已经在实战模式，新增的铺牌手要计入preloadCount
+  if (wasLive) {
+    state.preloadCount += parsed.length;
+  }
+  // 恢复原有模式 + 一次渲染
+  state.isLiveMode = wasLive;
+  renderAll();
+
+  closeModal();
+  const msg = '✅ 成功导入 ' + parsed.length + ' 手牌路数据！';
+  if (!state.isLiveMode) {
+    alert(msg + '\n\n💡 点击"🎮 开始实战"按钮进入实战模式开始下注');
+  } else {
+    alert(msg);
+  }
+}
+
+// 切换到实战模式
+function startLiveMode() {
+  if (state.isLiveMode) return;
+  if (state.road.length === 0) {
+    alert('请先铺好牌路再开始实战');
+    return;
+  }
+  state.isLiveMode = true;
+  state.preloadCount = state.road.length;
+  state.sessionStart = Date.now(); // 实战开始计时
+  renderAll();
+}
+
+// ============================================================
 // 会话日志系统
 // ============================================================
 
@@ -2677,6 +3152,27 @@ function addResult(type) {
     alert('🧊 冷却中，请稍后再操作');
     return;
   }
+
+  // ========== 铺牌模式：只记录路单，不计盈亏 ==========
+  if (!state.isLiveMode) {
+    state.road.push(type);
+    state.sessionLog.push({
+      timestamp: Date.now(),
+      roundIndex: state.road.length,
+      actualResult: type,
+      profitImpact: 0,
+      isPreload: true
+    });
+    if (!state._suppressRender) {
+      renderAll();
+      const board = document.getElementById('roadBoard');
+      board.scrollTop = board.scrollHeight;
+      board.scrollLeft = board.scrollWidth;
+    }
+    return;
+  }
+
+  // ========== 实战模式：以下全部是正常追踪逻辑 ==========
 
   // 记录本次结果前的推荐（用于失败追踪 + 复盘日志）
   const prevAnalysis = analyze();
@@ -2709,7 +3205,7 @@ function addResult(type) {
   const hasGF = roadSignals.indexOf('golden_finger') !== -1;
 
   // 检查是否使用了自定义策略
-  var usingCustomStrategy = _selectedCustomStrategy && type !== 'T';
+  var usingCustomStrategy = state.selectedCustomStrategy && type !== 'T';
   var activeStrategyName = null;
   var activeStrategyAction = null;
   var activeStrategyConfidence = null;
@@ -2718,7 +3214,7 @@ function addResult(type) {
     // 查找自定义策略
     var csFound = null;
     for (var csi = 0; csi < (state.customStrategies || []).length; csi++) {
-      if (state.customStrategies[csi].name === _selectedCustomStrategy) {
+      if (state.customStrategies[csi].name === state.selectedCustomStrategy) {
         csFound = state.customStrategies[csi];
         break;
       }
@@ -2727,7 +3223,9 @@ function addResult(type) {
       activeStrategyName = csFound.name;
       activeStrategyAction = csFound.direction;
       activeStrategyConfidence = csFound.confidence;
-      recommendedBet = Math.round(state.capital * confToTier(csFound.confidence, csFound.name).pct);
+      var csTier = confToTier(csFound.confidence, csFound.name);
+      tierInfo = csTier;
+      recommendedBet = Math.round(state.capital * csTier.pct);
     } else {
       usingCustomStrategy = false;
     }
@@ -2790,19 +3288,21 @@ function addResult(type) {
       hasDoubleDragon: hasDD,
       hasGoldenFinger: hasGF,
       signals: roadSignals
-    }
+    },
+    isPreload: !state.isLiveMode  // 标记是否为铺牌手
   };
 
   state.road.push(type);
 
   // 计算盈利影响（和局不计胜负）
+  var isWin = false; // 提前声明，所有路径都有明确值
   if (type === 'T') {
     state.sessionStats.roundsTied++;
     logEntry.profitImpact = 0;
     logEntry.userFollowed = false;
   } else if (activeStrategyName && activeStrategyAction) {
     // 用户跟随了系统推荐或使用了自定义策略
-    var isWin = activeStrategyAction === type;
+    isWin = activeStrategyAction === type;
     if (isWin) {
       const winAmount = type === 'P' ? recommendedBet : Math.round(recommendedBet * 0.95);
       logEntry.profitImpact = winAmount;
@@ -2815,7 +3315,13 @@ function addResult(type) {
   } else {
     // 无推荐 或 用户覆盖了系统推荐
     state.sessionStats.roundsLost++;
-    logEntry.profitImpact = 0;
+    // 实战模式：一律追踪盈亏（有推荐用推荐注码，无推荐用最低档3%）
+    if (state.isLiveMode) {
+      var betAmt = recommendedBet > 0 ? recommendedBet : Math.round(state.capital * 0.03);
+      logEntry.profitImpact = -betAmt;
+    } else {
+      logEntry.profitImpact = 0;
+    }
     logEntry.userFollowed = false;
   }
 
@@ -2864,7 +3370,7 @@ function addResult(type) {
 
   // 清除自定义策略选择
   if (usingCustomStrategy) {
-    _selectedCustomStrategy = null;
+    state.selectedCustomStrategy = null;
   }
 
   // 追踪流水和抽水
@@ -2899,6 +3405,15 @@ function undoResult() {
   const removed = state.road.pop();
   if (state.sessionLog.length > 0) {
     const lastLog = state.sessionLog.pop();
+    // 铺牌手：不涉及任何统计
+    if (lastLog.isPreload) {
+      // 如果在实战模式，撤销铺牌手要减去preloadCount
+      if (state.isLiveMode) {
+        state.preloadCount = Math.max(0, state.preloadCount - 1);
+      }
+      renderAll();
+      return;
+    }
     state.capital -= lastLog.profitImpact;
     state.sessionStats.roundsPlayed--;
     state.sessionStats.profitLoss -= lastLog.profitImpact;
@@ -2908,6 +3423,60 @@ function undoResult() {
       state.sessionStats.roundsLost--;
     } else if (lastLog.actualResult === 'T') {
       state.sessionStats.roundsTied--;
+    }
+
+    // 恢复策略滚动胜率（移除最近一次记录）
+    if (lastLog.recommendation && lastLog.actualResult !== 'T') {
+      var sKey = lastLog.recommendation.strategy;
+      if (state.strategyRecentResults[sKey] && state.strategyRecentResults[sKey].length > 0) {
+        state.strategyRecentResults[sKey].pop();
+      }
+      // 恢复策略统计计数
+      if (state.sessionStats.strategyStats[sKey]) {
+        var ss = state.sessionStats.strategyStats[sKey];
+        ss.count = Math.max(0, ss.count - 1);
+        var wasWin = lastLog.recommendation.action === lastLog.actualResult;
+        if (wasWin) ss.wins = Math.max(0, ss.wins - 1);
+        else ss.losses = Math.max(0, ss.losses - 1);
+      }
+    }
+
+    // 恢复流水/抽水追踪
+    var betAmt = lastLog.recommendation ? lastLog.recommendation.betAmount || 0 : 0;
+    if (lastLog.actualResult !== 'T' && betAmt > 0 && state.sessionStats.turnover > 0) {
+      state.sessionStats.turnover = Math.max(0, state.sessionStats.turnover - betAmt);
+      if (lastLog.actualResult === 'B') {
+        state.sessionStats.bankerBetAmount = Math.max(0, (state.sessionStats.bankerBetAmount || 0) - betAmt);
+        if (lastLog.profitImpact > 0) {
+          state.sessionStats.bankerWinAmount = Math.max(0, (state.sessionStats.bankerWinAmount || 0) - betAmt);
+        }
+      } else if (lastLog.actualResult === 'P') {
+        state.sessionStats.playerBetAmount = Math.max(0, (state.sessionStats.playerBetAmount || 0) - betAmt);
+      }
+    }
+
+    // 恢复负追状态到前一枪
+    if (state.chaseState && lastLog.gunNumber) {
+      var chaseKey = state.chaseState.strategy;
+      // 如果撤销的手属于当前负追策略，退回一枪
+      if (lastLog.recommendation && lastLog.recommendation.strategy === chaseKey) {
+        state.chaseState.gunsUsed = Math.max(0, state.chaseState.gunsUsed - 1);
+        if (state.chaseState.gunsUsed === 0) {
+          resetChase(); // 已退回第0枪，结束负追
+        }
+        // 恢复分枪统计
+        var gunStatKey = 'gun' + (lastLog.gunNumber || 1);
+        if (state.chaseStats[chaseKey] && state.chaseStats[chaseKey][gunStatKey]) {
+          var gs = state.chaseStats[chaseKey][gunStatKey];
+          gs.count = Math.max(0, gs.count - 1);
+          if (lastLog.profitImpact > 0) gs.wins = Math.max(0, gs.wins - 1);
+          else gs.losses = Math.max(0, gs.losses - 1);
+          if (gs.count === 0) delete state.chaseStats[chaseKey][gunStatKey];
+        }
+      } else {
+        // 撤销的手不属于当前负追策略 → 重置
+        resetChase();
+      }
     }
   }
   renderAll();
@@ -2936,6 +3505,8 @@ function endSession(confirmAction) {
     initCapital: state.initCapital,
     finalCapital: state.capital,
     profitLoss: state.capital - state.initCapital,
+    preloadCount: state.preloadCount,
+    isLiveMode: state.isLiveMode,
     settings: JSON.parse(JSON.stringify(state.settings))
   };
 
@@ -2957,6 +3528,8 @@ function endSession(confirmAction) {
   state.strategyFailures = {};
   state.locked = false;
   state.lockReason = null;
+  state.preloadCount = 0;
+  state.isLiveMode = false;
   state.lockUntil = null;
   state.coolDownUntil = null;
   resetChase();
@@ -3339,7 +3912,9 @@ function openReview() {
       html += '<div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:4px 8px;margin-bottom:3px;cursor:pointer;border-left:3px solid ' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';" onclick="showSessionDetail(' + i + ')">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
       html += '<div><span style="font-size:11px;">#' + (i+1) + ' ' + (start.getMonth()+1)+'/'+start.getDate() + ' ' + String(start.getHours()).padStart(2,'0')+':'+String(start.getMinutes()).padStart(2,'0') + '</span>';
-      html += '<span style="font-size:10px;color:#888;margin-left:4px;">' + dur + ' · ' + s.road.length + '局</span></div>';
+      var preC = s.preloadCount || 0;
+      var liveDisplay = (s.isLiveMode && s.road.length > preC) ? ('实战' + (s.road.length - preC) + ' ') : '';
+      html += '<span style="font-size:10px;color:#888;margin-left:4px;">' + dur + ' · ' + liveDisplay + s.road.length + '局</span></div>';
       const effRounds = s.sessionStats.roundsPlayed - (s.sessionStats.roundsTied || 0);
       const wr = effRounds > 0 ? (s.sessionStats.roundsWon / effRounds * 100).toFixed(1) : '0.0';
       html += '<div><b style="color:' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';font-size:12px;">' + (pl >= 0 ? '+' : '') + pl.toLocaleString() + '</b>';
@@ -3376,7 +3951,10 @@ function showSessionDetail(index) {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:#aaa;">';
   html += '<div>开始: ' + start.toLocaleString() + '</div>';
   html += '<div>时长: ' + dur + '</div>';
-  html += '<div>局数: ' + s.road.length + '</div>';
+  const pc = s.preloadCount || 0;
+  const liveR = s.road.length - pc;
+  html += '<div>总手数: ' + s.road.length + '</div>';
+  html += '<div>实战手: ' + (s.isLiveMode ? liveR : 0) + '</div>';
   html += '<div>盈亏: <b style="color:' + (pl >= 0 ? '#4ecca3' : '#e94560') + ';">' + (pl >= 0 ? '+' : '') + pl.toLocaleString() + '</b></div>';
   html += '<div>胜: ' + s.sessionStats.roundsWon + '</div>';
   html += '<div>负: ' + s.sessionStats.roundsLost + '</div>';
@@ -3446,6 +4024,11 @@ function showSessionDetail(index) {
       }
       html += '<div style="margin-top:4px;font-size:10px;color:#666;">💡 负追第一枪命中率通常最高，后续递减速考虑降低注码</div>';
     }
+  }
+
+  // --- 三路交叉验证 ---
+  if (s.road && s.road.length >= 5) {
+    html += renderThreeRoadPanel(s.road);
   }
 
   // --- 偏差分析：高概率推荐失败 → 为什么没按预期走 ---
@@ -3545,7 +4128,8 @@ function exportSessionReport(index) {
 
   let report = '=== Baccarat 复盘报告 ===\n';
   report += '时间: ' + start.toLocaleString() + ' (' + dur + ')\n';
-  report += '局数: ' + s.road.length + ' | 盈亏: ' + (pl >= 0 ? '+' : '') + pl + '\n';
+  var pcount = s.preloadCount || 0;
+  report += '总手数: ' + s.road.length + ' | 实战手: ' + (s.isLiveMode ? Math.max(0, s.road.length - pcount) : 0) + ' | 盈亏: ' + (pl >= 0 ? '+' : '') + pl + '\n';
   report += '命中率: ' + wr + '% (' + s.sessionStats.roundsWon + '/' + effRounds + '，不含和局)\n\n';
   report += '--- 策略表现 ---\n';
   const keys = Object.keys(s.sessionStats.strategyStats);
@@ -3637,7 +4221,59 @@ function clearAllData() {
   state.dailyStats = defaultDailyStats();
   saveState();
   renderAll();
-  alert('✅ 数据已清空');
+  alert('✅ 历史数据已清空');
+}
+
+function resetAllData() {
+  if (!confirm('⚠️ 确定要全部重置？此操作将：\n① 清空所有历史会话\n② 清空当前路单\n③ 盈利归零\n④ 资金重置回初始本金')) return;
+  if (!confirm('再次确认：所有数据将永久删除，不可恢复！')) return;
+  state.completedSessions = [];
+  state.dailyStats = defaultDailyStats();
+  state.road = [];
+  state.sessionLog = [];
+  state.sessionStats = {
+    roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
+  };
+  state.capital = state.initCapital;
+  state.isLiveMode = false;
+  state.preloadCount = 0;
+  state.strategyFailures = {};
+  state.strategyRecentResults = {};
+  state.chaseState = null;
+  state.chaseStats = {};
+  state.selectedCustomStrategy = null;
+  state.sessionStart = Date.now();
+  state._capitalManuallySet = false;
+  renderAll();
+  alert('✅ 已全部重置，盈利归零，资金回到 ' + state.capital.toLocaleString());
+}
+
+function clearTestProfit() {
+  if (!confirm('⚠️ 将当前累计盈利归零（资金重置回初始本金）？\n\n历史会话数据会保留供复盘参考，但顶部盈利显示归零。')) return;
+  if (!confirm('再次确认：资金将从 ' + state.capital.toLocaleString() + ' 重置为 ' + state.initCapital.toLocaleString() + '（盈利归零）？')) return;
+
+  // 只重置资金和盈利，不清除历史会话
+  state.capital = state.initCapital;
+  state.sessionStats = {
+    roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
+  };
+  state.dailyStats = defaultDailyStats();
+  state._capitalManuallySet = false;
+  state.alertsCleared = false;
+
+  // 同步输入框
+  const capInput = document.getElementById('inputCapital');
+  if (capInput) capInput.value = state.capital;
+
+  // 直接强制更新头部盈利显示（避免依赖renderAll的调用链）
+  document.getElementById('hdProfit').textContent = '+0';
+  document.getElementById('hdProfit').className = 'num';
+  document.getElementById('displayPL').textContent = '+0';
+  document.getElementById('displayPL').style.color = '#4ecca3';
+  document.getElementById('hdBankroll').textContent = state.capital.toLocaleString();
+
+  renderAll();
+  alert('🧹 测试盈利已清除！\n资金已回到 ' + state.capital.toLocaleString() + '，累计盈利归零。\n历史会话数据仍然保留供复盘查看。');
 }
 
 // ============================================================
@@ -3722,6 +4358,22 @@ function openSettings() {
   html += '<input type="number" value="' + (s.rebateRate * 100) + '" min="0" max="5" step="0.1" onchange="updateSetting(\'rebateRate\', parseFloat(this.value)/100||0.008)" style="width:60px;">';
   html += '<span style="font-size:10px;color:#888;margin-left:4px;">%</span>';
   html += '</div>';
+
+  html += '<div class="setting-row"><label>注码计算模式</label>';
+  html += '<select onchange="updateSetting(\'betSizingMode\', this.value)" style="width:90px;">';
+  html += '<option value="fixed"' + (s.betSizingMode === 'fixed' ? ' selected' : '') + '>固定比例</option>';
+  html += '<option value="kelly"' + (s.betSizingMode === 'kelly' ? ' selected' : '') + '>凯利公式</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<div class="setting-row"><label>分数凯利</label>';
+  html += '<select onchange="updateSetting(\'kellyFraction\', parseFloat(this.value))" style="width:90px;">';
+  html += '<option value="0.1"' + (s.kellyFraction === 0.1 ? ' selected' : '') + '>10%（保守）</option>';
+  html += '<option value="0.25"' + (s.kellyFraction === 0.25 ? ' selected' : '') + '>25%（推荐）</option>';
+  html += '<option value="0.33"' + (s.kellyFraction === 0.33 ? ' selected' : '') + '>33%（积极）</option>';
+  html += '<option value="0.5"' + (s.kellyFraction === 0.5 ? ' selected' : '') + '>50%（激进）</option>';
+  html += '</select>';
+  html += '</div>';
   html += '</div>'; // end tabMoney
 
   // Tab 3: 策略管理
@@ -3736,11 +4388,13 @@ function openSettings() {
   for (var si = 0; si < builtinKeys.length; si++) {
     var sk = builtinKeys[si];
     var st = STRATEGIES[sk];
-    var isEnabled = state.strategyEnabled[st.name] !== false; // 默认启用
+    // 去掉emoji前缀，与analyze()中的策略名匹配
+    var stName = st.name.replace(/^[^\w一-鿿]+\s*/, '');
+    var isEnabled = state.strategyEnabled[stName] !== false; // 默认启用
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,0.04);">';
-    html += '<label style="font-size:11px;color:#ccc;cursor:pointer;"><input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + st.name.replace(/'/g, "\\'") + '\', this.checked)" style="margin-right:4px;">' + st.name + '</label>';
+    html += '<label style="font-size:11px;color:#ccc;cursor:pointer;"><input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + stName.replace(/'/g, "\\'") + '\', this.checked)" style="margin-right:4px;">' + st.name + '</label>';
     // 显示滚动胜率（如果有）
-    var sRolling = getRollingWR(st.name);
+    var sRolling = getRollingWR(stName);
     if (sRolling !== null) {
       var sColor = sRolling < 0.5 ? '#e94560' : (sRolling >= 0.65 ? '#4ecca3' : '#ffd93d');
       html += '<span style="font-size:10px;color:' + sColor + ';">近15次' + (sRolling * 100).toFixed(0) + '%</span>';
@@ -3816,6 +4470,10 @@ function openSettings() {
   html += '<button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="exportAllData()">📤 导出所有数据</button>';
   html += '<button class="btn btn-sm" style="background:#533483;color:#fff;" onclick="importAllData()">📥 导入数据</button>';
   html += '<button class="btn btn-sm" style="background:#2d2d44;color:#e94560;" onclick="clearAllData()">🗑 清空历史</button>';
+  html += '<button class="btn btn-sm" style="background:#5c1010;color:#fff;" onclick="resetAllData()">🔄 全部重置</button>';
+  html += '</div>';
+  html += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
+  html += '<button class="btn btn-sm" style="background:#0f3a1e;color:#4ecca3;border:1px solid #4ecca3;" onclick="clearTestProfit()">🧹 清除测试盈利(归零)</button>';
   html += '</div>';
   html += '<div style="margin-top:10px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;color:#888;">';
   html += '数据保存于浏览器本地存储，清除浏览器缓存会丢失数据。建议定期导出备份。';
@@ -3824,8 +4482,10 @@ function openSettings() {
 
   // 当前状态显示
   html += '<div style="margin-top:10px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;font-size:11px;color:#888;line-height:1.6;">';
-  html += '📊 今日: ' + state.dailyStats.date + ' | 累计盈亏: ' + (state.dailyStats.totalPL >= 0 ? '+' : '') + state.dailyStats.totalPL.toLocaleString();
-  html += ' | 会话: ' + state.dailyStats.sessionsCount + ' 次';
+  const settingPL = state.capital - state.initCapital;
+  html += '📊 当前盈亏: <b class="num" style="color:' + (settingPL >= 0 ? '#4ecca3' : '#e94560') + ';">' + (settingPL >= 0 ? '+' : '') + settingPL.toLocaleString() + '</b>';
+  html += ' | 历史会话: ' + state.completedSessions.length + ' 次';
+  html += ' | 累计: ' + (state.dailyStats.totalPL >= 0 ? '+' : '') + state.dailyStats.totalPL.toLocaleString();
   html += '</div>';
 
   // 关闭按钮
@@ -3916,7 +4576,6 @@ function deleteCustomStrategy(index) {
 }
 
 // 选择使用自定义策略（在路单下方调用）
-var _selectedCustomStrategy = null;
 function selectCustomStrategy() {
   var customStrs = state.customStrategies || [];
   if (customStrs.length === 0) {
@@ -3940,7 +4599,7 @@ function selectCustomStrategy() {
     alert('该策略已关闭，请在设置中重新启用');
     return;
   }
-  _selectedCustomStrategy = selected.name;
+  state.selectedCustomStrategy = selected.name;
   // 更新下注建议显示
   document.getElementById('betAdviceLabel').textContent = '🎯 自定义: ' + selected.name;
   document.getElementById('betAdviceAction').textContent = '下注' + (selected.direction === 'B' ? '👑庄' : '👤闲');
@@ -3950,7 +4609,7 @@ function selectCustomStrategy() {
 }
 
 function clearCustomStrategySelection() {
-  _selectedCustomStrategy = null;
+  state.selectedCustomStrategy = null;
   renderAll();
 }
 
@@ -3986,16 +4645,26 @@ setInterval(function() {
   renderAlerts();
   renderLockState();
   const lockEl = document.getElementById('lockTimerDisplay');
-  if (lockEl && state.locked && state.lockUntil) {
-    const remain = Math.max(0, Math.floor((state.lockUntil - Date.now()) / 1000));
-    lockEl.textContent = formatTime(remain);
-    if (remain <= 0 && state.locked) unlockSystem(false);
+  if (lockEl) {
+    if (state.locked && state.lockUntil) {
+      const remain = Math.max(0, Math.floor((state.lockUntil - Date.now()) / 1000));
+      lockEl.textContent = '⏱ ' + formatTime(remain);
+      lockEl.style.display = '';
+      if (remain <= 0 && state.locked) unlockSystem(false);
+    } else {
+      lockEl.style.display = 'none';
+    }
   }
   const coolEl = document.getElementById('coolDownDisplay');
-  if (coolEl && state.coolDownUntil) {
-    const remain = Math.max(0, Math.floor((state.coolDownUntil - Date.now()) / 1000));
-    coolEl.textContent = formatTime(remain);
-    if (remain <= 0) { state.coolDownUntil = null; renderAll(); }
+  if (coolEl) {
+    if (state.coolDownUntil && state.coolDownUntil > Date.now()) {
+      const remain = Math.max(0, Math.floor((state.coolDownUntil - Date.now()) / 1000));
+      coolEl.textContent = '🧊 ' + formatTime(remain);
+      coolEl.style.display = '';
+    } else {
+      coolEl.style.display = 'none';
+      if (state.coolDownUntil) { state.coolDownUntil = null; renderAll(); }
+    }
   }
 }, 1000);
 
