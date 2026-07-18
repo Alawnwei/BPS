@@ -221,6 +221,12 @@ body {
 .strategy-card .confidence.high { background: rgba(78,204,163,0.2); color: #4ecca3; }
 .strategy-card .confidence.mid { background: rgba(255,217,61,0.2); color: #ffd93d; }
 .strategy-card .confidence.low { background: rgba(233,69,96,0.2); color: #e94560; }
+#decisionTracePanel { margin-top: 10px; }
+.trace-section { margin-bottom: 8px; }
+.trace-section-title { color: #4ecca3; font-weight: bold; font-size: 12px; margin-bottom: 3px; }
+.trace-vote-row { display: flex; justify-content: space-between; padding: 2px 6px; margin: 1px 0; border-radius: 3px; }
+.trace-vote-winner { background: rgba(78,204,163,0.1); border-left: 2px solid #4ecca3; }
+.trace-signal-tag { display: inline-block; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; margin: 1px 2px; font-size: 10px; }
 
 /* ===== 注码管理 ===== */
 .bankroll-box {
@@ -408,9 +414,9 @@ body {
   box-shadow: 0 0 4px rgba(233,69,96,0.3);
 }
 .three-road-dot.B {
-  background: #4ecca3;
+  background: #4a90d9;
   color: #fff;
-  box-shadow: 0 0 4px rgba(78,204,163,0.3);
+  box-shadow: 0 0 4px rgba(74,144,217,0.3);
 }
 .three-road-label {
   font-size: 10px;
@@ -418,6 +424,12 @@ body {
   min-width: 36px;
   display: inline-block;
 }
+.risk-badge {
+  font-size: 9px; padding: 1px 6px; border-radius: 8px; margin-left: 4px;
+  display: inline-block;
+}
+.risk-badge.reduced { background: rgba(255,217,61,0.2); color: #ffd93d; }
+.risk-badge.suspended { background: rgba(233,69,96,0.2); color: #e94560; }
 
 /* ===== 移动端适配 ===== */
 @media (max-width: 480px) {
@@ -449,6 +461,7 @@ body {
     <span>盈利: <span class="num" id="hdProfit">0</span></span>
     <span>总手: <span class="num" id="hdRounds">0</span></span>
     <span>实战: <span class="num" id="hdLiveRounds" style="color:#ffd93d;">0</span></span>
+    <span id="storageIndicator" style="font-size:10px;color:#666;display:none;">💾</span>
   </div>
   <div style="display:flex;gap:4px;margin-top:4px;width:100%;">
     <span id="modeLabel" style="font-size:11px;align-self:center;padding:2px 8px;border-radius:4px;background:#2d2d44;color:#aaa;">📋 铺牌模式</span>
@@ -492,6 +505,21 @@ body {
       <button class="btn btn-sm" style="background:#1a6b4a;color:#fff;" onclick="openBatchInput()" id="btnBatchInput">📋 铺牌导入</button>
       <button class="btn btn-sm" style="background:#e94560;color:#fff;display:none;" onclick="startLiveMode()" id="btnStartLive">🎮 开始实战</button>
     </div>
+    <!-- 点数输入（仅实战模式显示） -->
+    <div class="controls" id="pointInputArea" style="display:none;gap:3px;">
+      <label style="font-size:10px;color:#888;white-space:nowrap;">点数:</label>
+      <input type="number" id="inputBankerPoint" min="0" max="9" style="width:36px;background:#0d1b2a;border:1px solid rgba(233,69,96,0.25);border-radius:3px;color:#e94560;padding:1px 4px;font-size:12px;text-align:center;" placeholder="庄" onfocus="this.select()">
+      <input type="number" id="inputPlayerPoint" min="0" max="9" style="width:36px;background:#0d1b2a;border:1px solid rgba(78,204,163,0.25);border-radius:3px;color:#4ecca3;padding:1px 4px;font-size:12px;text-align:center;" placeholder="闲" onfocus="this.select()">
+      <label style="font-size:10px;color:#888;margin-left:2px;">补:</label>
+      <label style="font-size:10px;color:#e94560;cursor:pointer;"><input type="checkbox" id="chkBankerDrew" style="accent-color:#e94560;width:12px;height:12px;">庄</label>
+      <label style="font-size:10px;color:#4ecca3;cursor:pointer;"><input type="checkbox" id="chkPlayerDrew" style="accent-color:#4ecca3;width:12px;height:12px;">闲</label>
+    </div>
+    <div class="controls" id="liveBetControls" style="display:none;">
+      <label style="font-size:11px;color:#888;">下注额:</label>
+      <input type="number" id="inputBetAmount" style="width:80px;background:#0d1b2a;border:1px solid rgba(255,255,255,0.12);border-radius:4px;color:#4ecca3;padding:2px 6px;font-size:13px;" placeholder="推荐" onchange="updateBetOverride(this.value)">
+      <span style="font-size:10px;color:#888;" id="betAmountHint"></span>
+      <button class="btn btn-sm" style="background:#1a6b4a;color:#fff;display:none;" onclick="quickFollow()" id="btnQuickFollow">🔁 照打</button>
+    </div>
     <!-- 状态信息 -->
     <div class="status-bar" id="statusBar">
       <span class="status-item"><span class="status-dot green"></span> 等待开局...</span>
@@ -515,6 +543,26 @@ body {
         <div style="font-size:12px;color:#aaa;margin-top:2px;" id="betAdviceReason">输入本金并记录路单后自动生成</div>
         <div style="font-size:11px;color:#666;margin-top:2px;" id="betAdviceStrategy"></div>
       </div>
+    </div>
+
+    <!-- 决策追溯面板 -->
+    <div class="panel" id="decisionTracePanel" style="display:none;margin-top:8px;">
+      <div class="panel-title" style="cursor:pointer;" onclick="toggleDecisionTrace()">
+        📋 决策追溯
+        <span style="font-size:11px;color:#888;">(最近1次)</span>
+        <span id="traceToggleIcon" style="float:right;">▲</span>
+      </div>
+      <div id="decisionTraceContent" style="font-size:11px;color:#aaa;max-height:300px;overflow-y:auto;line-height:1.6;"></div>
+    </div>
+
+    <!-- 三路分析面板（大眼路/小路/蟑螂路红蓝点图） -->
+    <div class="panel" id="threeRoadMainPanel" style="display:none;margin-top:8px;">
+      <div class="panel-title" style="cursor:pointer;" onclick="toggleThreeRoadMain()">
+        🔍 三路交叉验证
+        <span style="font-size:11px;color:#888;">(大眼路·小路·蟑螂路)</span>
+        <span id="threeRoadToggleIcon" style="float:right;">▲</span>
+      </div>
+      <div id="threeRoadMainContent" style="font-size:11px;color:#aaa;line-height:1.8;"></div>
     </div>
 
     <!-- 战绩面板 -->
@@ -617,7 +665,11 @@ body {
         <span class="badge" style="cursor:pointer" onclick="toggleRef()">展开 ▼</span>
       </div>
       <div class="ref-grid" id="refGrid">
-        <div class="ref-item" onclick="showDetail('jump_dragon')">
+        <div class="ref-item" onclick="showDetail('trend_follow')">
+          <div class="ref-name">📈 追趋势</div>
+          <div class="ref-desc">数据验证53.7%，上局出啥下啥</div>
+          <span class="ref-tag t-pos">平推</span>
+        </div>
           <div class="ref-name">🏃 单跳长龙不过3</div>
           <div class="ref-desc">6+单跳断后反打，命中率最高</div>
           <span class="ref-tag t-neg">负追</span>
@@ -634,7 +686,7 @@ body {
         </div>
         <div class="ref-item" onclick="showDetail('counter_pattern')">
           <div class="ref-name">🎯 反规律打法</div>
-          <div class="ref-desc">4+4以上重注必中</div>
+          <div class="ref-desc">4+4以上打反向，需避开龙尾和比例悬殊场景</div>
           <span class="ref-tag t-atk">重注</span>
         </div>
         <div class="ref-item" onclick="showDetail('triple_one')">
@@ -694,6 +746,20 @@ body {
 
 <script>
 // ============================================================
+// 安全工具
+// ============================================================
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// 分析结果缓存（避免renderAll中重复计算）
+var _cachedAnalysis = null;
+var _perceiveCache = null;
+var _perceiveCacheKey = '';
+
+// ============================================================
 // 数据模型
 // ============================================================
 
@@ -707,7 +773,7 @@ const DEFAULT_SETTINGS = {
   stopLossSoftPct: 10,     // 亏损%触发软提醒
   takeProfitPct: 20,       // 盈利%触发止盈
   takeProfitSoftPct: 10,   // 盈利%触发软提醒
-  hardLimitLock: true,     // 达到硬限制后锁定下注
+  hardLimitLock: false,    // 达到硬限制后仅提示，不硬性阻断
   dailyLossLimit: 0,       // 日亏损上限，0=不限制
   rebateRate: 0.008,       // 返水比例，默认0.8%
   betSizingMode: 'fixed',  // 'fixed' | 'kelly'  注码模式
@@ -743,15 +809,30 @@ function initState() {
       roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
     };
     state.alertsCleared = state.alertsCleared || false;
-    state.sessionStart = state.sessionStart || Date.now();
+    state.sessionStart = Date.now(); // 重新加载时重置计时起点，避免过期sessionStart导致误锁
     state.strategyRecentResults = state.strategyRecentResults || {};
     state.strategyEnabled = state.strategyEnabled || {};
+    if (state.strategyEnabled['排排连高端玩法'] === undefined) {
+      state.strategyEnabled['排排连高端玩法'] = false; // 默认禁用（数据验证31.5%低于随机）
+    }
+    if (state.strategyEnabled['长龙回头不过3'] === undefined) {
+      state.strategyEnabled['长龙回头不过3'] = false; // 默认禁用（数据验证33.3%低于随机）
+    }
+    if (state.strategyEnabled['三一式打法'] === undefined) {
+      state.strategyEnabled['三一式打法'] = false; // 默认禁用（数据验证38.8%低于随机）
+    }
     state.customStrategies = state.customStrategies || [];
     state.chaseState = state.chaseState || null;
     state.chaseStats = state.chaseStats || {};
+    state.chaseCompleted = state.chaseCompleted || {};
     state.selectedCustomStrategy = state.selectedCustomStrategy || null;
     state.preloadCount = state.preloadCount || 0;
     state.isLiveMode = state.isLiveMode || false;
+    state.threeRoadState = state.threeRoadState || {
+      verdictHistory: [], lastVerdictLevel: null, riskLevel: 'normal', warningTypes: []
+    };
+    state.lastDecisionTrace = state.lastDecisionTrace || null;
+    state._fileStorageEnabled = state._fileStorageEnabled || false;
   } else {
     state = {
       road: [],
@@ -777,13 +858,25 @@ function initState() {
         strategyStats: {}
       },
       strategyRecentResults: {},
-      strategyEnabled: {},
+      strategyEnabled: {
+        '排排连高端玩法': false,
+        '长龙回头不过3': false,
+        '三一式打法': false
+      },
       customStrategies: [],
       chaseState: null,
       chaseStats: {},
+      chaseCompleted: {},
+      threeRoadState: {
+        verdictHistory: [], lastVerdictLevel: null, riskLevel: 'normal', warningTypes: []
+      },
       selectedCustomStrategy: null,
       preloadCount: 0,
-      isLiveMode: false
+      isLiveMode: false,
+      currentBetOverride: 0,
+      _bustAlertShown: false,
+      _fileStorageEnabled: false,
+      lastDecisionTrace: null
     };
   }
   // 每日统计日期检查
@@ -798,6 +891,10 @@ function saveState() {
   try {
     const toSave = JSON.parse(JSON.stringify(state));
     localStorage.setItem('baccarat_state', JSON.stringify(toSave));
+    // 同步写入本地文件（异步，不阻塞）
+    if (state._fileStorageEnabled) {
+      _writeToFile(toSave).catch(function(e) { console.warn('文件同步写入失败:', e); });
+    }
   } catch(e) {
     console.warn('保存状态失败:', e);
   }
@@ -817,6 +914,107 @@ function clearSavedState() {
   localStorage.removeItem('baccarat_state');
   state.sessionStart = Date.now();
   state.alertsCleared = false;
+}
+
+// --- 本地文件持久化（File System Access API）---
+function _fsApiSupported() {
+  return typeof window.showSaveFilePicker === 'function';
+}
+
+function _getFileHandle() {
+  return new Promise(function(resolve) {
+    if (!_fsApiSupported()) { resolve(null); return; }
+    try {
+      var req = indexedDB.open('baccarat_fs', 1);
+      req.onupgradeneeded = function() { req.result.createObjectStore('handles'); };
+      req.onsuccess = function() {
+        var db = req.result;
+        var tx = db.transaction('handles', 'readonly');
+        var getReq = tx.objectStore('handles').get('stateFile');
+        getReq.onsuccess = function() { db.close(); resolve(getReq.result || null); };
+        getReq.onerror = function() { db.close(); resolve(null); };
+      };
+      req.onerror = function() { resolve(null); };
+    } catch(e) { resolve(null); }
+  });
+}
+
+function _storeFileHandle(handle) {
+  return new Promise(function(resolve) {
+    if (!_fsApiSupported()) { resolve(false); return; }
+    try {
+      var req = indexedDB.open('baccarat_fs', 1);
+      req.onupgradeneeded = function() { req.result.createObjectStore('handles'); };
+      req.onsuccess = function() {
+        var db = req.result;
+        var tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, 'stateFile');
+        tx.oncomplete = function() { db.close(); resolve(true); };
+        tx.onerror = function() { db.close(); resolve(false); };
+      };
+      req.onerror = function() { resolve(false); };
+    } catch(e) { resolve(false); }
+  });
+}
+
+function _clearFileHandle() {
+  return new Promise(function(resolve) {
+    try {
+      var req = indexedDB.open('baccarat_fs', 1);
+      req.onsuccess = function() {
+        var db = req.result;
+        var tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').delete('stateFile');
+        tx.oncomplete = function() { db.close(); resolve(true); };
+        tx.onerror = function() { db.close(); resolve(false); };
+      };
+      req.onerror = function() { resolve(false); };
+    } catch(e) { resolve(false); }
+  });
+}
+
+async function _writeToFile(data) {
+  if (!state._fileStorageEnabled) return;
+  var handle;
+  try {
+    handle = await _getFileHandle();
+    if (!handle) { state._fileStorageEnabled = false; return; }
+    var opts = { mode: 'readwrite' };
+    if ((await handle.queryPermission(opts)) !== 'granted') {
+      if ((await handle.requestPermission(opts)) !== 'granted') {
+        state._fileStorageEnabled = false;
+        console.warn('文件写入权限被拒绝，回退到浏览器存储');
+        return;
+      }
+    }
+    var writable = await handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  } catch(e) {
+    console.warn('文件写入失败，回退到浏览器存储:', e.message);
+    state._fileStorageEnabled = false;
+  }
+}
+
+async function _readFromFile() {
+  var handle;
+  try {
+    handle = await _getFileHandle();
+    if (!handle) return null;
+    var opts = { mode: 'read' };
+    if ((await handle.queryPermission(opts)) !== 'granted') {
+      if ((await handle.requestPermission(opts)) !== 'granted') return null;
+    }
+    var file = await handle.getFile();
+    var text = await file.text();
+    var data = JSON.parse(text);
+    // 验证是合法的状态数据
+    if (data && typeof data.road !== 'undefined') return data;
+    return null;
+  } catch(e) {
+    console.warn('文件读取失败:', e.message);
+    return null;
+  }
 }
 
 // ============================================================
@@ -1084,37 +1282,643 @@ const STRATEGIES = {
     bet: '从第4位开始胜进试探',
     confidence: '中',
     note: '第二条龙通常比第一条短。龙回头系列失败后此策略无效'
+  },
+  point_strength: {
+    name: '🃏 点数优势',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '根据近几手的庄闲点数平均值对比，谁点数大打谁。点数差距越大信心越高。',
+    rules: [
+      '比较近3手庄闲平均点数',
+      '差距≥1.5点可入手',
+      '差距≥3点高信心'
+    ],
+    condition: '点数差距≥1.5',
+    bet: '打点数强的方向',
+    confidence: '中',
+    note: '点数数据需要手动输入才有效'
+  },
+  point_six_rule: {
+    name: '🔢 6点规则',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '庄6点没打死闲说明闲旺；闲出≥7大点预示下局庄出；庄≥7还被闲赢说明闲势不可挡。',
+    rules: [
+      '庄6+闲赢 → 闲旺打闲',
+      '闲≥7 → 下局打庄',
+      '庄≥7被闲赢 → 闲势强打闲'
+    ],
+    condition: '庄6或大点',
+    bet: '按规则方向打',
+    confidence: '中',
+    note: '点数数据需要手动输入才有效'
+  },
+  point_six_supplement: {
+    name: '🃏 6点庄补死',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '庄6点并且补了牌还是被闲赢，说明闲势极强，下局果断打闲。',
+    rules: [
+      '庄6 + 庄补牌 + 闲赢',
+      '强信号，高信心'
+    ],
+    condition: '庄6补牌输',
+    bet: '打闲',
+    confidence: '高',
+    note: '点数数据需要手动输入才有效'
+  },
+  three_road_verify: {
+    name: '✅ 三路验证',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '基于大眼路、小路、蟑螂路的交叉验证分析，对当前趋势提供确认或预警。辅助型策略，配合其他策略使用。',
+    rules: [
+      '三路同色且趋势强 → 确认当前方向',
+      '三路分歧或趋势弱 → 降级或反向',
+      '大眼路5+红 → 趋势极强确认',
+      '大眼路5+蓝 → 趋势极弱警告',
+      '短期见顶信号 → 博反转'
+    ],
+    condition: '至少5列数据',
+    bet: '根据三路状态配合主策略',
+    confidence: '中',
+    note: '💡 辅助型策略，不单独使用'
+  },
+  trend_follow: {
+    name: '📈 追趋势',
+    type: '平推',
+    typeClass: 't-pos',
+    desc: '数据验证胜率53.7%（p=0.0175），上局出什么就下什么。统计显著的趋势跟踪策略。',
+    rules: [
+      '上一局出庄 → 下庄',
+      '上一局出闲 → 下闲',
+      '趋势确认率>50%时发出信号',
+      '配合庄家天然优势更佳'
+    ],
+    condition: '趋势确认率>48%',
+    bet: '跟随上一局结果',
+    confidence: '中',
+    note: '⚠️ 统计显著但样本有限，建议与其他策略配合使用'
   }
 };
 
 // ============================================================
-// 核心分析引擎
+// 决策框架 — 条件引擎 & 信心校准器
 // ============================================================
-function analyze() {
-  const r = state.road;
-  if (r.length < 3) {
-    return { suggestions: [], betAdvice: null, signals: [] };
+
+// ============================================================
+// Phase 2: 策略注册表 — 统一管理策略元数据、条件、负追配置、权重
+// ============================================================
+const StrategyRegistry = {
+  // === 趋势跟随类 (trend_follow) ===
+  '追趋势': {
+    category: 'trend_follow', signals: ['trend_follow'],
+    defaultConfidence: '中', weight: 1.0, betType: 'flat',
+    conditions: []
+  },
+  '王者单跳': {
+    category: 'trend_follow', signals: ['jump'],
+    defaultConfidence: '中', weight: 1.0, betType: 'flat',
+    conditions: []
+  },
+  '金手指打法': {
+    category: 'trend_follow', signals: ['golden_finger'],
+    defaultConfidence: '低', weight: 1.0, betType: 'positive_progression',
+    conditions: []
+  },
+  '预测长龙': {
+    category: 'trend_follow', signals: ['dragon_predict'],
+    defaultConfidence: '中', weight: 0.8, betType: 'positive_progression',
+    conditions: []
+  },
+
+  // === 反转类 (reversal) ===
+  '长龙回头不过3': {
+    category: 'reversal', signals: ['dragon', 'broken_dragon'],
+    defaultConfidence: '低', weight: 0.6, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 3, label: '负追3枪', dynamicMaxGuns: true },
+    conditions: [
+      { name: 'noDoubleDragon', desc: '双联龙', severity: '降级' }
+    ]
+  },
+  '斩龙/三断长龙': {
+    category: 'reversal', signals: ['cut_dragon'],
+    defaultConfidence: '中-高', weight: 0.7, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 3, label: '负追3枪' },
+    conditions: []
+  },
+  '单跳长龙不过3': {
+    category: 'reversal', signals: ['jump_dragon_break'],
+    defaultConfidence: '中', weight: 0.7, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 2, label: '负追2枪' },
+    conditions: []
+  },
+  '长龙回头龙尾跳': {
+    category: 'reversal', signals: ['dragon_tail_jump'],
+    defaultConfidence: '中-高', weight: 0.8, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 3, label: '负追3枪' },
+    conditions: []
+  },
+
+  // === 结构破规类 (pattern_break) ===
+  '反规律打法': {
+    category: 'pattern_break', signals: ['counter_pattern'],
+    defaultConfidence: '中-高', weight: 0.8, betType: 'flat',
+    conditions: [
+      { name: 'noDragonTail', desc: '长龙尾截取', severity: '降级' },
+      { name: 'noRatioExtreme', desc: '比例悬殊', severity: '降级' }
+    ]
+  },
+  '交叉性组合打法': {
+    category: 'pattern_break', signals: ['cross_combo'],
+    defaultConfidence: '中-高', weight: 1.1, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 2, label: '负追2枪' },
+    conditions: []
+  },
+
+  // === 结构识别类 (pattern) ===
+  '三一式打法': {
+    category: 'pattern', signals: ['triple_one'],
+    defaultConfidence: '低', weight: 0.5, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 2, label: '负追2枪' },
+    conditions: [
+      { name: 'no33', desc: '33重叠', severity: '禁用' },
+      { name: 'noDoubleDragon', desc: '双联龙', severity: '禁用' },
+      { name: 'noGoldenFinger', desc: '金手指', severity: '禁用' }
+    ]
+  },
+  '一四式三角形': {
+    category: 'pattern', signals: ['one_room_two_halls', 'one_room_break', 'little_trapezoid'],
+    defaultConfidence: '中', weight: 0.8, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 4, label: '逐级负追4步' },
+    conditions: []
+  },
+  '大三打法': {
+    category: 'pattern', signals: ['large_triangle'],
+    defaultConfidence: '中', weight: 0.7, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 2, label: '负追2把' },
+    conditions: []
+  },
+  '双跳狙击型': {
+    category: 'pattern', signals: ['double_jump_snipe'],
+    defaultConfidence: '中', weight: 0.8, betType: 'negative_progression',
+    chaseConfig: { maxGuns: 3, label: '负追3枪' },
+    conditions: []
+  },
+  '排排连高端玩法': {
+    category: 'pattern', signals: ['pai_pai_lian', 'one_two_two'],
+    defaultConfidence: '极低', weight: 0.3, betType: 'negative_progression',
+    conditions: []
+  },
+
+  // === 点数驱动类 (point_based) ===
+  '点数优势': {
+    category: 'point_based', signals: ['point_strength'],
+    defaultConfidence: '中', weight: 1.1, betType: 'flat',
+    conditions: []
+  },
+  '6点规则': {
+    category: 'point_based', signals: ['point_six_rule'],
+    defaultConfidence: '中', weight: 1.0, betType: 'flat',
+    conditions: []
+  },
+  '6点庄补死': {
+    category: 'point_based', signals: ['point_six_supplement'],
+    defaultConfidence: '高', weight: 1.2, betType: 'flat',
+    conditions: []
+  },
+
+  // === 多路验证类 (three_road) ===
+  '三路验证': {
+    category: 'three_road', signals: ['three_road_confirm', 'three_road_warning', 'three_road_divergence', 'three_road_top_signal', 'three_road_shift'],
+    defaultConfidence: '中', weight: 1.1, betType: 'flat',
+    conditions: []
+  },
+
+  // === 观望/默认 ===
+  '长龙观望': {
+    category: '观望', signals: [],
+    defaultConfidence: '低', weight: 0.0, betType: '观望',
+    conditions: []
+  },
+  '不输为赢': {
+    category: '观望', signals: [],
+    defaultConfidence: '低', weight: 0.0, betType: 'flat',
+    conditions: []
+  }
+};
+
+// 从 StrategyRegistry 自动派生条件定义（向后兼容）
+const strategyConditionDefs = {};
+for (var _sk in StrategyRegistry) {
+  if (StrategyRegistry[_sk].conditions && StrategyRegistry[_sk].conditions.length > 0) {
+    strategyConditionDefs[_sk] = StrategyRegistry[_sk].conditions;
+  }
+}
+
+// 从 StrategyRegistry 自动派生负追配置（向后兼容）
+var CHASE_CONFIG = {};
+for (var _sk2 in StrategyRegistry) {
+  if (StrategyRegistry[_sk2].chaseConfig) {
+    CHASE_CONFIG[_sk2] = StrategyRegistry[_sk2].chaseConfig;
+  }
+}
+
+// 辅助函数：获取策略元数据
+function getStrategyMeta(strategyName) {
+  return StrategyRegistry[strategyName] || null;
+}
+
+// 辅助函数：根据信号类型查找匹配的策略
+function findStrategiesForSignal(signalType) {
+  var matches = [];
+  for (var name in StrategyRegistry) {
+    var meta = StrategyRegistry[name];
+    if (meta.signals.indexOf(signalType) >= 0) {
+      matches.push({ name: name, meta: meta });
+    }
+  }
+  return matches;
+}
+
+// ============================================================
+// Phase 2: 条件评估器 (保持兼容)
+// ============================================================
+
+// 条件评估器：根据条件名解释器 context 中的布尔值判断
+function evaluateConditions(strategyName, context) {
+  var rules = strategyConditionDefs[strategyName];
+  if (!rules) return { passed: true, messages: [], severity: null };
+  var result = { passed: true, messages: [], severity: null };
+  for (var i = 0; i < rules.length; i++) {
+    var rule = rules[i];
+    var passed = context[rule.name];
+    if (passed === undefined) passed = true;
+    if (!passed) {
+      result.messages.push(rule.desc);
+      if (rule.severity === '禁用') return { passed: false, messages: result.messages, severity: '禁用' };
+      if (rule.severity === '降级' && result.severity !== '禁用') result.severity = '降级';
+    }
+  }
+  if (result.messages.length > 0) result.passed = false;
+  return result;
+}
+
+// 信心等级排序（值越小越自信）
+const confOrder = { '极高': 0, '高': 1, '中-高': 2, '中': 3, '低': 4, '极低': 5 };
+const confLevels = ['极高', '高', '中-高', '中', '低', '极低'];
+function maxConf(a, b) { return confOrder[a] <= confOrder[b] ? a : b; } // 取更自信
+function minConf(a, b) { return confOrder[a] >= confOrder[b] ? a : b; } // 取不自信
+
+// ============================================================
+// Phase 3: 仲裁层 — 加权投票消解策略冲突
+// ============================================================
+const CONFIDENCE_SCORE = { '极高': 5, '高': 4, '中-高': 3.5, '中': 3, '低': 2, '极低': 1 };
+
+function arbitrate(suggestions) {
+  var votesByDir = { B: [], P: [] };
+
+  for (var i = 0; i < suggestions.length; i++) {
+    var s = suggestions[i];
+    if (s.action !== 'B' && s.action !== 'P') continue;
+    var meta = getStrategyMeta(s.strategy);
+    var weight = meta && meta.weight != null ? meta.weight : 1.0;
+    var confScore = CONFIDENCE_SCORE[s.confidence] || 2;
+    var vote = weight * confScore;
+    votesByDir[s.action].push({
+      strategy: s.strategy,
+      confidence: s.confidence,
+      weight: weight,
+      confScore: confScore,
+      vote: vote
+    });
+  }
+
+  var dirScores = [];
+  var dirs = ['B', 'P'];
+  for (var d = 0; d < dirs.length; d++) {
+    var dir = dirs[d];
+    var strats = votesByDir[dir];
+    if (strats.length === 0) continue;
+    var totalScore = 0;
+    for (var j = 0; j < strats.length; j++) {
+      totalScore += strats[j].vote;
+    }
+    dirScores.push({ direction: dir, totalScore: totalScore, strategies: strats });
+  }
+
+  // 无方向性建议 → 返回空
+  if (dirScores.length === 0) {
+    return { winner: null, betAdvice: null, votes: [], conflictsResolved: false, reasoning: '无方向性建议' };
+  }
+
+  // 单方向 → 直接胜出
+  if (dirScores.length === 1) {
+    var d = dirScores[0];
+    var bestS = d.strategies[0];
+    for (var k = 1; k < d.strategies.length; k++) {
+      if ((confOrder[d.strategies[k].confidence] || 9) < (confOrder[bestS.confidence] || 9)) {
+        bestS = d.strategies[k];
+      }
+    }
+    // 找原始suggestion
+    var betAdvice = null;
+    for (var m = 0; m < suggestions.length; m++) {
+      if (suggestions[m].strategy === bestS.strategy && suggestions[m].confidence === bestS.confidence && suggestions[m].action === d.direction) {
+        betAdvice = suggestions[m];
+        break;
+      }
+    }
+    return { winner: d.direction, betAdvice: betAdvice, votes: dirScores, conflictsResolved: false, reasoning: '全部' + d.strategies.length + '条策略一致指向' + (d.direction === 'B' ? '庄' : '闲') };
+  }
+
+  // 双向 → 按总分比较
+  // 庄天然优势补偿：庄胜率 50.68% vs 闲 49.32%，给庄方向 +5% 权重
+  for (var _dc = 0; _dc < dirScores.length; _dc++) {
+    if (dirScores[_dc].direction === 'B') {
+      dirScores[_dc].totalScore = dirScores[_dc].totalScore * 1.05;
+    }
+  }
+  dirScores.sort(function(a, b) { return b.totalScore - a.totalScore; });
+
+  // 平局处理：总分相同时比较策略数量
+  if (dirScores[0].totalScore === dirScores[1].totalScore) {
+    if (dirScores[0].strategies.length > dirScores[1].strategies.length) {
+      // dirScores[0] 策略更多，保留排序
+    } else if (dirScores[1].strategies.length > dirScores[0].strategies.length) {
+      // 交换
+      var tmp = dirScores[0];
+      dirScores[0] = dirScores[1];
+      dirScores[1] = tmp;
+    } else {
+      // 总分和策略数都相同 → 信号不明确，无胜出方向
+      return { winner: null, betAdvice: null, votes: dirScores, conflictsResolved: true, reasoning: '双方得分完全相同(' + dirScores[0].totalScore.toFixed(1) + ')，信号不明确' };
+    }
+  }
+
+  var winner = dirScores[0];
+  var runnerUp = dirScores[1];
+  var conflictsResolved = true;
+
+  // 取胜出方向中置信度最高的建议
+  var bestS2 = winner.strategies[0];
+  for (var n = 1; n < winner.strategies.length; n++) {
+    if ((confOrder[winner.strategies[n].confidence] || 9) < (confOrder[bestS2.confidence] || 9)) {
+      bestS2 = winner.strategies[n];
+    }
+  }
+  var betAdvice2 = null;
+  for (var p = 0; p < suggestions.length; p++) {
+    if (suggestions[p].strategy === bestS2.strategy && suggestions[p].confidence === bestS2.confidence && suggestions[p].action === winner.direction) {
+      betAdvice2 = suggestions[p];
+      break;
+    }
+  }
+
+  var margin = winner.totalScore - runnerUp.totalScore;
+  var reasoning = '方向' + (winner.direction === 'B' ? '庄' : '闲') + '总分' + winner.totalScore.toFixed(1)
+    + '击败方向' + (runnerUp.direction === 'B' ? '庄' : '闲') + '总分' + runnerUp.totalScore.toFixed(1)
+    + '，胜出差' + margin.toFixed(1);
+
+  return { winner: winner.direction, betAdvice: betAdvice2, votes: dirScores, conflictsResolved: conflictsResolved, reasoning: reasoning };
+}
+
+// ============================================================
+// Phase 3: 执行层 — 统一下注执行计划
+// ============================================================
+function execute(arbitration, context) {
+  if (!arbitration || !arbitration.betAdvice) {
+    return { action: null, betSize: 0, tier: null, chaseInfo: null, riskMultiplier: context.betSizeMultiplier, executionNote: '无有效建议' };
+  }
+
+  var betAdvice = arbitration.betAdvice;
+  var tier, betSize;
+
+  if (context.settings.betSizingMode === 'kelly') {
+    var kellyBet = calculateKellyBet(betAdvice.strategy, betAdvice.action, context.capital);
+    if (kellyBet !== null && kellyBet > 0) {
+      betSize = kellyBet;
+      tier = { label: '凯利', pct: kellyBet / context.capital, icon: '📐', tier: 0 };
+    } else if (kellyBet === 0) {
+      return { action: betAdvice.action, betSize: 0, tier: null, chaseInfo: null, riskMultiplier: context.betSizeMultiplier, executionNote: '凯利建议不下注' };
+    } else {
+      tier = confToTier(betAdvice.confidence, betAdvice.strategy);
+      betSize = Math.round(context.capital * tier.pct);
+    }
+  } else {
+    tier = confToTier(betAdvice.confidence, betAdvice.strategy);
+    betSize = Math.round(context.capital * tier.pct);
+  }
+
+  var adjustedBet = Math.round(betSize * context.betSizeMultiplier);
+
+  var chaseInfo = null;
+  if (context.isLiveMode) {
+    if (context.chaseState && context.chaseState.gunsUsed < context.chaseState.maxGuns) {
+      chaseInfo = { type: 'continue', strategy: context.chaseState.strategy, gun: context.chaseState.gunsUsed + 1, maxGuns: context.chaseState.maxGuns, direction: context.chaseState.direction };
+    } else {
+      var chaseCfg = getChaseConfig(betAdvice.strategy);
+      if (chaseCfg) {
+        chaseInfo = { type: 'ready', strategy: betAdvice.strategy, maxGuns: chaseCfg.maxGuns };
+      }
+    }
+  }
+
+  var executionNote;
+  if (chaseInfo && chaseInfo.type === 'continue') {
+    executionNote = '负追续追，以负追为准';
+  } else if (context.betSizeMultiplier < 1.0) {
+    executionNote = '三路避险已应用注码折扣';
+  } else {
+    executionNote = '正常执行';
+  }
+
+  return { action: betAdvice.action, betSize: adjustedBet, tier: tier, chaseInfo: chaseInfo, riskMultiplier: context.betSizeMultiplier, executionNote: executionNote };
+}
+
+// ============================================================
+// Phase 3: 决策追溯 — 记录完整决策链
+// ============================================================
+function buildDecisionTrace(perception, suggestions, arbitration, execution) {
+  // 感知信号摘要
+  var signalSummary = [];
+  var sigs = perception.signals;
+  for (var i = 0; i < sigs.length; i++) {
+    signalSummary.push({ type: sigs[i].type, details: summarizeSignal(sigs[i]) });
+  }
+
+  // 建议摘要
+  var suggestionSummary = [];
+  for (var j = 0; j < suggestions.length; j++) {
+    var s = suggestions[j];
+    suggestionSummary.push({ strategy: s.strategy, action: s.action, confidence: s.confidence, type: s.type });
+  }
+
+  // 构建追溯对象
+  var trace = {
+    timestamp: Date.now(),
+    isoTime: new Date().toISOString(),
+    roadLength: state.road.length,
+    signals: signalSummary,
+    suggestions: suggestionSummary,
+    arbitration: {
+      winner: arbitration.winner,
+      votes: arbitration.votes,
+      conflictsResolved: arbitration.conflictsResolved,
+      reasoning: arbitration.reasoning
+    },
+    execution: execution
+  };
+
+  state.lastDecisionTrace = trace;
+  return trace;
+}
+
+// 信号摘要辅助函数
+function summarizeSignal(sig) {
+  switch (sig.type) {
+    case 'dragon': return sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲');
+    case 'broken_dragon': return sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断';
+    case 'jump': return sig.length + '连跳';
+    case 'counter_pattern': return sig.length + '+' + sig.length + ' 反规律';
+    case 'golden_finger': return (sig.size === 'big' ? '大' : '小') + '金手指(' + sig.count + '条)';
+    case 'triple_one': return '3+1 三一式';
+    case 'three_road_confirm': return '大眼' + sig.beCount + '连红确认';
+    case 'three_road_warning': return '大眼' + sig.beCount + '连蓝预警';
+    case 'three_road_divergence': return '三路分歧';
+    case 'three_road_top_signal': return '短期见顶';
+    case 'three_road_shift': return '红率变化 ' + (sig.direction || '');
+    case 'cut_dragon': return sig.length + '连斩龙';
+    case 'point_strength': return '点数优势 gap=' + sig.gap;
+    case 'point_six_rule': return '6点规则 ' + (sig.subRule || '');
+    case 'point_six_supplement': return '6点庄补死';
+    default: return sig.type;
+  }
+}
+
+// 信心校准管线 — 分阶段处理并记录每阶段影响
+// 返回: { confidence: string, breakdown: [{stage, input, output, reason}] }
+function calculateConfidenceDetailed(strategyName, baseConf, options) {
+  var breakdown = [];
+  var conf = baseConf;
+  var meta = getStrategyMeta(strategyName);
+
+  // 阶段1: 初始信心（来自策略注册表默认值或调用方传入）
+  breakdown.push({ stage: '初始', input: baseConf, output: baseConf, reason: meta ? '注册表默认:' + meta.defaultConfidence : '调用方传入' });
+
+  // 阶段2: 连续失败惩罚（每失败1次降1级）
+  var failCount = state.strategyFailures[strategyName] || 0;
+  if (failCount > 0) {
+    var idx = confOrder[conf] !== undefined ? confOrder[conf] : 4;
+    var newConf = confLevels[Math.min(idx + failCount, 5)];
+    breakdown.push({ stage: '失败惩罚', input: conf, output: newConf, reason: '连续失败' + failCount + '次, 降' + failCount + '级' });
+    conf = newConf;
+  } else {
+    breakdown.push({ stage: '失败惩罚', input: conf, output: conf, reason: '无失败记录' });
+  }
+
+  // 阶段3: 滚动胜率校准（对称：低降高升）
+  var rollingWR = getRollingWR(strategyName);
+  if (rollingWR !== null) {
+    var rollConf = conf;
+    var rollSampleSize = (state.strategyRecentResults[strategyName] || []).length;
+    // 降级
+    if (rollingWR <= 0.30) rollConf = minConf(conf, '极低');
+    else if (rollingWR <= 0.40) rollConf = minConf(conf, '低');
+    // 升级（≥60% 升1级, ≥70% 升2级）
+    var rollIdx = confOrder[rollConf] !== undefined ? confOrder[rollConf] : 4;
+    if (rollingWR >= 0.70 && rollSampleSize >= 8) {
+      rollConf = confLevels[Math.max(rollIdx - 2, 0)];
+    } else if (rollingWR >= 0.60 && rollSampleSize >= 5) {
+      rollConf = confLevels[Math.max(rollIdx - 1, 0)];
+    }
+    if (rollConf !== conf) {
+      var dir = confOrder[rollConf] < confOrder[conf] ? '升级' : '降级';
+      breakdown.push({ stage: '滚动胜率', input: conf, output: rollConf, reason: '近' + rollSampleSize + '手胜率' + (rollingWR*100).toFixed(0) + '% → ' + dir });
+      conf = rollConf;
+    } else {
+      breakdown.push({ stage: '滚动胜率', input: conf, output: conf, reason: '近' + rollSampleSize + '手胜率' + (rollingWR*100).toFixed(0) + '%, 不变' });
+    }
+  } else {
+    breakdown.push({ stage: '滚动胜率', input: conf, output: conf, reason: '数据不足, 跳过' });
+  }
+
+  // 阶段4: 历史胜率校准（对称：低降高升）
+  var stats = state.sessionStats.strategyStats[strategyName];
+  if (stats && stats.count >= 10) {
+    var wr = stats.wins / stats.count;
+    var histConf = conf;
+    // 降级
+    if (wr <= 0.35) histConf = minConf(conf, '极低');
+    else if (wr <= 0.45) histConf = minConf(conf, '低');
+    // 升级（≥55% 升1级, ≥65% 升2级）
+    var histIdx = confOrder[histConf] !== undefined ? confOrder[histConf] : 4;
+    if (wr >= 0.65 && stats.count >= 30) {
+      histConf = confLevels[Math.max(histIdx - 2, 0)];
+    } else if (wr >= 0.55 && stats.count >= 20) {
+      histConf = confLevels[Math.max(histIdx - 1, 0)];
+    }
+    if (histConf !== conf) {
+      var hdir = confOrder[histConf] < confOrder[conf] ? '升级' : '降级';
+      breakdown.push({ stage: '历史胜率', input: conf, output: histConf, reason: '累计' + stats.count + '手, 胜率' + (wr*100).toFixed(1) + '% → ' + hdir });
+      conf = histConf;
+    } else {
+      breakdown.push({ stage: '历史胜率', input: conf, output: conf, reason: '累计' + stats.count + '手, 胜率' + (wr*100).toFixed(1) + '%, 不变' });
+    }
+  } else {
+    breakdown.push({ stage: '历史胜率', input: conf, output: conf, reason: '样本不足10手, 跳过' });
+  }
+
+  // 阶段5: 特殊加成（穿透性等）
+  if (options && options.boost) {
+    var bm = { '极低': '低', '低': '中', '中': '高', '中-高': '高', '高': '极高', '极高': '极高' };
+    var boostConf = bm[conf] || conf;
+    if (options.boost === 'double') boostConf = bm[boostConf] || boostConf;
+    breakdown.push({ stage: '特殊加成', input: conf, output: boostConf, reason: options.boost === 'double' ? '双倍穿透加成' : '穿透性加成' });
+    conf = boostConf;
+  } else {
+    breakdown.push({ stage: '特殊加成', input: conf, output: conf, reason: '无' });
+  }
+
+  return { confidence: conf, breakdown: breakdown };
+}
+
+// 信心校准器（向后兼容，返回字符串）
+function calculateConfidence(strategyName, baseConf, options) {
+  return calculateConfidenceDetailed(strategyName, baseConf, options).confidence;
+}
+
+// ============================================================
+// Phase 1: 感知层 — 从原始路单提取结构化信号
+// ============================================================
+function perceive(road, sessionLog) {
+  if (road.length < 3) {
+    _perceiveCache = null; _perceiveCacheKey = '';
+    return { signals: [], context: null };
+  }
+
+  // 缓存命中：路单长度和尾元素未变则复用
+  var cacheKey = road.length + '|' + (road.length > 0 ? road[road.length - 1] : '');
+  if (_perceiveCache && _perceiveCacheKey === cacheKey) {
+    return _perceiveCache;
   }
 
   const signals = [];
-  let suggestions = [];
 
   // --- 基础统计 ---
-  const bCount = r.filter(x => x === 'B').length;
-  const pCount = r.filter(x => x === 'P').length;
-  const tCount = r.filter(x => x === 'T').length;
+  const bCount = road.filter(x => x === 'B').length;
+  const pCount = road.filter(x => x === 'P').length;
+  const tCount = road.filter(x => x === 'T').length;
   const bPct = bCount + pCount > 0 ? (bCount / (bCount + pCount) * 100) : 50;
   const pPct = bCount + pCount > 0 ? (pCount / (bCount + pCount) * 100) : 50;
 
   // --- 获取最后N个非T结果（去掉和） ---
-  const nr = r.filter(x => x !== 'T');
+  const nr = road.filter(x => x !== 'T');
   const last = nr[nr.length - 1] || null;
   const last5 = nr.slice(-5);
   const last10 = nr.slice(-10);
 
   // --- 检测双联龙（两条6+长龙出现在整条路中） ---
-  // 书中：双联龙产生即为 8庄+7闲+1庄，两条不相等的长龙
-  // 影响：长龙回头不过3慎用、三一式避开、抛物线避开
   const hasDoubleDragon = (function() {
     if (nr.length < 12) return false;
     let dc = 0, sl = 1;
@@ -1127,12 +1931,8 @@ function analyze() {
   })();
 
   // --- 检测金手指形态（3+交替下拉路形成手指状） ---
-  // 书中：前方有2-3条下拉路产生即可使用金手指打法
-  // 特征：交替列、长度为2+（非单跳）、一般持续4-5条下拉
-  // 影响：三一式避开、抛物线避开、出现单跳迹象立刻取消
   const goldenFinger = (function() {
     if (nr.length < 6) return null;
-    // 获取连续长度数组
     const streaks = [];
     let cnt = 1;
     for (let i = 1; i < nr.length; i++) {
@@ -1141,15 +1941,11 @@ function analyze() {
     }
     streaks.push({ type: nr[nr.length-1], len: cnt });
     if (streaks.length < 3) return null;
-    // 取最近最多5个streaks
     const recent = streaks.slice(-Math.min(5, streaks.length));
-    // 必须交替（B/P/B/P...）
     for (let i = 1; i < recent.length; i++) {
       if (recent[i].type === recent[i-1].type) return null;
     }
-    // 金手指要求列长度≥2（出现长度1=单跳迹象→取消）
     if (recent.some(s => s.len < 2)) return null;
-    // 达到3+交替列即判定为金手指
     const maxLen = Math.max(...recent.map(s => s.len));
     return {
       isGoldenFinger: true,
@@ -1159,7 +1955,8 @@ function analyze() {
     };
   })();
   const hasGoldenFinger = goldenFinger !== null;
-  // 金手指信号（用于显示/其他策略参考）
+
+  // 金手指信号
   if (hasGoldenFinger) {
     signals.push({
       type: 'golden_finger',
@@ -1167,6 +1964,12 @@ function analyze() {
       count: goldenFinger.count,
       maxLen: goldenFinger.maxLen
     });
+  }
+
+  // --- 三路综合避险 ---
+  var threeRoadResult = analyzeThreeRoadPatterns(road);
+  for (var ts = 0; ts < threeRoadResult.signals.length; ts++) {
+    signals.push(threeRoadResult.signals[ts]);
   }
 
   // --- 1. 检测长龙（当前活跃连） ---
@@ -1183,7 +1986,6 @@ function analyze() {
   }
 
   // --- 1b. 检测已断的长龙（长龙回头信号） ---
-  // 当有一段6+的长龙被反方向截断时触发
   if (nr.length >= 7) {
     let currStreak = 1;
     let currType = nr[nr.length - 1];
@@ -1191,7 +1993,6 @@ function analyze() {
       if (nr[i] === currType) currStreak++;
       else break;
     }
-    // 检查当前连之前是否有一段6+的长龙
     const prevStartIdx = nr.length - 1 - currStreak;
     if (prevStartIdx > 0) {
       let prevStreak = 1;
@@ -1203,12 +2004,30 @@ function analyze() {
       if (prevStreak >= 6 && currType !== prevType) {
         signals.push({
           type: 'broken_dragon',
-          subtype: prevType,       // 原长龙的方向
-          length: prevStreak,       // 原长龙的连数
-          breakType: currType,      // 打断的方向
-          breakLength: currStreak   // 打断后的长度
+          subtype: prevType,
+          length: prevStreak,
+          breakType: currType,
+          breakLength: currStreak
         });
       }
+    }
+  }
+
+  // --- 1c. 检测追趋势信号（数据验证胜率 53.7%, p=0.0175） ---
+  if (nr.length >= 2) {
+    var trendDir = nr[nr.length - 1]; // 上局出什么
+    var trendConfirm = 0;
+    for (var ti = 1; ti < nr.length; ti++) {
+      if (nr[ti] === nr[ti - 1]) trendConfirm++;
+    }
+    // 趋势确认率动态阈值：0.50 + 2/n，小样本更严格，大样本趋近50%
+    var trendThreshold = 0.50 + Math.max(0, 2.0 / (nr.length - 1));
+    if (trendConfirm / (nr.length - 1) > trendThreshold) {
+      signals.push({
+        type: 'trend_follow',
+        direction: trendDir,
+        confirmRate: trendConfirm / (nr.length - 1)
+      });
     }
   }
 
@@ -1223,35 +2042,26 @@ function analyze() {
   }
 
   // --- 3. 检测一房带两厅 (1+2) ---
-  // 真正的1+2如庄闲闲(BPP)，庄是独立的一房，不是长龙尾巴
   if (nr.length >= 3) {
     const a = nr[nr.length - 3];
     const b = nr[nr.length - 2];
     const c = nr[nr.length - 1];
-    // a !== b (房≠厅), b === c (两厅相同)
-    // 且a之前(如有)不能也是a，确保"一房"是独立的而非长龙尾巴
     if (a !== b && b === c && (nr.length < 4 || nr[nr.length - 4] !== a)) {
       signals.push({ type: 'one_room_two_halls', first: a, pair: b, count: 2 });
     }
     if (nr.length >= 4) {
       const d = nr[nr.length - 4];
       if (d !== a && a === b && b !== c) {
-        // 已形成一房带两厅后断了
         signals.push({ type: 'one_room_break', first: d, pair: a });
       }
     }
   }
 
   // --- 4. 检测31式信号（3+1独立信号） ---
-  // 书中强调"独立"3连，非长龙尾巴
-  // 书中也强调：33重叠、双联龙、金手指时禁用三一式
-  let has33 = false; // 提升作用域，后续小梯形等检测也需要
+  let has33 = false;
   if (nr.length >= 4) {
     const a = nr[nr.length - 4], b = nr[nr.length - 3], c = nr[nr.length - 2], d = nr[nr.length - 1];
-    // 3+1: BBB P 或 PPP B，且a之前(如有)不能也是a（确保独立）
     if (a === b && b === c && c !== d && (nr.length < 5 || nr[nr.length - 5] !== a)) {
-      // 检查整条路是否出现过33格局（连续两个3连）
-      // 书中原文："注意避开33重叠的前路"
       if (nr.length >= 6) {
         let sl = 1, prevSl = 0;
         for (let i = 1; i < nr.length; i++) {
@@ -1261,28 +2071,22 @@ function analyze() {
             prevSl = sl; sl = 1;
           }
         }
-        // 处理最后一对（33在结尾的情况）
         if (!has33 && prevSl === 3 && sl === 3) has33 = true;
       }
-      // 双联龙 + 金手指检查（书中原文：三一式避开双联龙、金手指）
       if (!has33 && !hasDoubleDragon && !hasGoldenFinger) {
         signals.push({ type: 'triple_one', streak: a, opposite: d });
       }
     }
   }
 
-  // --- 5. 检测反规律 (4+4, 5+5 etc.) ---
-  // 书中原意：4+4是干净对称的独立规律块，非长龙尾巴截取
-  // 需检查是否first块前面还有更多相同结果（长龙尾巴）
+  // --- 5. 检测反规律 (4+4, 5+5, etc.) ---
   for (let len = 8; len >= 4; len--) {
     if (nr.length >= len * 2) {
       const first = nr.slice(nr.length - len * 2, nr.length - len);
       const second = nr.slice(nr.length - len);
       if (first.every(x => x === first[0]) && second.every(x => x === second[0]) && first[0] !== second[0]) {
-        // 检查first块是否为长龙尾巴（前面还有相同的结果）
         const beforeIdx = nr.length - len * 2 - 1;
         const isDragonTail = beforeIdx >= 0 && nr[beforeIdx] === first[0];
-        // 统计长龙尾巴的额外长度
         let tailExtra = 0;
         if (isDragonTail) {
           for (let i = beforeIdx; i >= 0; i--) {
@@ -1290,17 +2094,12 @@ function analyze() {
             else break;
           }
         }
-        // 统计庄闲比例（书中强调比例对反规律命中率影响大）
         const totalBP = bCount + pCount;
         const ratioNote = (bCount > 0 && pCount > 0)
           ? (bCount / pCount > 1.5 || pCount / bCount > 1.5 ? '比例悬殊' : '比例均衡')
           : '比例正常';
-        // 穿透性打法检测：反规律失败后再次形成相同规律
-        // 书中：反规律失败→形成X+X+X+X → 穿透性命中率更高
         const cpFailCount = state.strategyFailures['反规律打法'] || 0;
         const isPenetration = cpFailCount > 0;
-        // 计算穿透性健康指数（A>B>C）
-        // 看first块前方连续几个second方向的结果
         let healthBefore = 0;
         if (beforeIdx >= 0 && nr[beforeIdx] === second[0]) {
           for (let i = beforeIdx; i >= 0; i--) {
@@ -1320,7 +2119,7 @@ function analyze() {
           isPenetration: isPenetration,
           penHealth: penHealth
         });
-        break; // 取最高的
+        break;
       }
     }
   }
@@ -1328,7 +2127,6 @@ function analyze() {
   // --- 6. 检测排排连 (2+2) ---
   if (nr.length >= 5) {
     const a = nr[nr.length - 5], b = nr[nr.length - 4], c = nr[nr.length - 3], d = nr[nr.length - 2], e = nr[nr.length - 1];
-    // 确保第一个2块是干净对子而非长龙尾巴（a之前不能也是a）
     if (a === b && c === d && b !== c && e !== d && (nr.length < 6 || nr[nr.length - 6] !== a)) {
       signals.push({ type: 'pai_pai_lian', start: a, pair2: c, last: e });
     }
@@ -1343,18 +2141,16 @@ function analyze() {
   }
 
   // --- 8. 检测单跳长龙断了 ---
-  // 从尾部先找连（确认打断），再往前数连跳长度
-  // 书中：最低6连跳（6个交替元素）断了转长连 → 打长连的反方向
   let streakLen = 1;
-  const streakType = nr[nr.length - 1];
+  const sType2 = nr[nr.length - 1];
   for (let i = nr.length - 2; i >= 0; i--) {
-    if (nr[i] === streakType) streakLen++;
+    if (nr[i] === sType2) streakLen++;
     else break;
   }
   if (streakLen >= 2) {
-    const breakStart = nr.length - streakLen; // 打断的第一手
+    const breakStart = nr.length - streakLen;
     if (breakStart >= 1) {
-      let altCount = 1; // 从打断第一手往前数交替元素
+      let altCount = 1;
       for (let i = breakStart; i >= 1; i--) {
         if (nr[i] !== nr[i - 1]) altCount++;
         else break;
@@ -1363,51 +2159,43 @@ function analyze() {
         signals.push({
           type: 'jump_dragon_break',
           jumpLength: altCount,
-          streakType: streakType
+          streakType: sType2
         });
       }
     }
   }
 
-  // --- 9. 检测小梯形打法（三一式命中后的后续） ---
-  // 书中：小梯形是建立在31式击中之后！31式未击中(33)则不能使用
-  // 打法：选反两枪，中则收手，未中则放弃
+  // --- 9. 检测小梯形打法 ---
   if (nr.length >= 3 && state.strategyFailures['三一式打法'] === 0 && !has33 && !hasDoubleDragon && !hasGoldenFinger) {
     const a = nr[nr.length - 3], b = nr[nr.length - 2], c = nr[nr.length - 1];
-    // 1+2 pattern: 一房带两厅 可作为小梯形切入点
     if (a !== b && b === c && (nr.length < 4 || nr[nr.length - 4] !== a)) {
       signals.push({ type: 'little_trapezoid', first: a, pair: b, mode: 'one_room_two_halls' });
     } else if (nr.length >= 4) {
       const d = nr[nr.length - 4];
       if (d !== a && a === b && b !== c) {
-        // 1+2已断 pattern: 小梯形关注后续
         signals.push({ type: 'little_trapezoid', first: d, pair: a, mode: 'broken_follow' });
       }
     }
   }
 
-  // --- 10. 检测斩龙信号（活跃长龙特定位置） ---
-  // 书中：前位7-9、中位6-8、后位7-9连龙时入手博断
+  // --- 10. 检测斩龙信号 ---
   if (nr.length >= 6) {
     let streak = 1;
-    let streakType = nr[nr.length - 1];
+    let tType = nr[nr.length - 1];
     for (let i = nr.length - 2; i >= 0; i--) {
-      if (nr[i] === streakType) streak++;
+      if (nr[i] === tType) streak++;
       else break;
     }
-    // 当前活跃长龙在6-9连之间
     if (streak >= 6 && streak <= 9) {
-      // 判断位置：前1/3、中1/3、后1/3
       const position = nr.length / 3;
       const currentIdx = nr.length - 1;
       let positionType = '后位';
       if (currentIdx < position) positionType = '前位';
       else if (currentIdx < position * 2) positionType = '中位';
-      // 根据位置调整信心
       const posConfMap = { '前位': '中-高', '中位': '高', '后位': '中-高' };
       signals.push({
         type: 'cut_dragon',
-        subtype: streakType,
+        subtype: tType,
         length: streak,
         position: positionType,
         confidence: posConfMap[positionType] || '中'
@@ -1416,7 +2204,6 @@ function analyze() {
   }
 
   // --- 11. 检测大三打法 ---
-  // 标准大三：3+1+2+1+1 结构 或 反向大三：1+1+2+2+3
   if (nr.length >= 7) {
     const streaks = [];
     let cnt = 1;
@@ -1426,13 +2213,11 @@ function analyze() {
     }
     streaks.push(cnt);
     const recent = streaks.slice(-6);
-    // 标准大三: [3, 1, 2, 1, 1, ...]
     if (recent.length >= 5 && recent[recent.length-5] >= 3 && recent[recent.length-4] === 1 &&
         recent[recent.length-3] === 2 && recent[recent.length-2] === 1 && recent[recent.length-1] === 1) {
       const lastType = nr[nr.length - 1];
       signals.push({ type: 'large_triangle', mode: 'standard', opposite: lastType === 'B' ? 'P' : 'B' });
     }
-    // 反向大三: [1, 1, 2, 2, 3, ...]
     if (recent.length >= 5 && recent[recent.length-5] === 1 && recent[recent.length-4] === 1 &&
         recent[recent.length-3] === 2 && recent[recent.length-2] === 2 && recent[recent.length-1] >= 3) {
       const lastType = nr[nr.length - 1];
@@ -1442,14 +2227,11 @@ function analyze() {
 
   // --- 12. 检测交叉性组合（4+1信号） ---
   if (nr.length >= 5) {
-    const a = nr[nr.length - 5], b = nr[nr.length - 4], c = nr[nr.length - 3], d = nr[nr.length - 2], e = nr[nr.length - 1];
-    // 4+1: BBBB P 或 PPPP B（4连+1个反向）
     const first4 = nr.slice(nr.length - 5, nr.length - 1);
+    const e = nr[nr.length - 1];
     if (first4.every(x => x === first4[0]) && first4[0] !== e) {
-      // 检查是否长龙尾巴
       const beforeIdx = nr.length - 6;
       const isDragonTail = beforeIdx >= 0 && nr[beforeIdx] === first4[0];
-      // 判断是否4+3+1（已进入三一式范围）
       var isAlreadyTriple = false;
       if (nr.length >= 8) {
         const a2 = nr[nr.length - 8], b2 = nr[nr.length - 7], c2 = nr[nr.length - 6];
@@ -1468,7 +2250,6 @@ function analyze() {
 
   // --- 13. 检测双跳狙击（2+2+3） ---
   if (nr.length >= 6) {
-    // 计算最近连的长度
     const streaks = [];
     let cnt = 1;
     for (let i = 1; i < nr.length; i++) {
@@ -1477,10 +2258,8 @@ function analyze() {
     }
     streaks.push({ type: nr[nr.length-1], len: cnt });
     const recent = streaks.slice(-5);
-    // 需要至少3个streaks，形成2+2+3或更长
     if (recent.length >= 3) {
       const last3 = recent.slice(-3);
-      // 检测双跳延伸：两边长度相等（2和2）中间不同，第三段延伸到3+
       if (last3[0].type !== last3[1].type && last3[1].type !== last3[2].type &&
           last3[0].len >= 2 && last3[1].len >= 2 && last3[2].len >= 3 &&
           Math.abs(last3[0].len - last3[1].len) <= 1) {
@@ -1495,7 +2274,6 @@ function analyze() {
   }
 
   // --- 14. 检测预测长龙信号 ---
-  // 书中：第一条6+龙出现后，第二条龙出现的概率增加
   if (nr.length >= 12) {
     let dragonCount = 0;
     let maxDragonLen = 0;
@@ -1505,9 +2283,7 @@ function analyze() {
       else { if (sl >= 6) { dragonCount++; maxDragonLen = Math.max(maxDragonLen, sl); } sl = 1; }
     }
     if (sl >= 6) { dragonCount++; maxDragonLen = Math.max(maxDragonLen, sl); }
-    // 已有1条6+龙，且当前没有活跃龙，且非双联龙/金手指
     if (dragonCount === 1 && !hasDoubleDragon && !hasGoldenFinger) {
-      // 从第4位开始（第一条龙结束后第4手）
       const lastDragonEnd = (function() {
         let ls = 1;
         for (let i = nr.length - 2; i >= 0; i--) {
@@ -1528,8 +2304,6 @@ function analyze() {
   }
 
   // --- 15. 检测长龙回头龙尾跳 ---
-  // 书中：长龙回头命中后打找龙尾，龙尾命中后打龙尾跳
-  // 这里检测已经完成了"长龙回头"和"找龙尾"可能的形态
   if (nr.length >= 10 && !hasDoubleDragon) {
     const streaks = [];
     let cnt = 1;
@@ -1538,11 +2312,8 @@ function analyze() {
       else { streaks.push({ type: nr[i-1], len: cnt }); cnt = 1; }
     }
     streaks.push({ type: nr[nr.length-1], len: cnt });
-    // 需要至少4个streaks来检测龙回头→找龙尾→龙尾跳的链条
     if (streaks.length >= 4) {
       const last4 = streaks.slice(-4);
-      // 可能的龙尾跳形态：长streak + 短streak + 短streak + 短streak（交替）
-      // 如：7B + 1P + 2B + 1P（龙尾跳信号）
       if (last4[0].len >= 6 && last4[1].len <= 2 && last4[2].len <= 3 && last4[3].len === 1 &&
           last4[0].type !== last4[1].type && last4[1].type === last4[2].type && last4[2].type !== last4[3].type &&
           last4[0].type === last4[3].type) {
@@ -1555,6 +2326,129 @@ function analyze() {
       }
     }
   }
+
+  // --- 16. 检测牌点优势 ---
+  var pointSignals = (function() {
+    const result = [];
+    const ptLogs = sessionLog.filter(function(e) {
+      return e && e.bankerPoint != null && e.playerPoint != null;
+    });
+    if (ptLogs.length < 2) return result;
+
+    const recent = ptLogs.slice(-3);
+
+    // 16a. 点数强弱分析
+    var bkAvg = 0, plAvg = 0;
+    var bkCount = 0, plCount = 0;
+    for (var pi = 0; pi < recent.length; pi++) {
+      const e = recent[pi];
+      if (e.actualResult === 'T') continue;
+      if (e.bankerPoint != null) { bkAvg += e.bankerPoint; bkCount++; }
+      if (e.playerPoint != null) { plAvg += e.playerPoint; plCount++; }
+    }
+    if (bkCount > 0) bkAvg /= bkCount;
+    if (plCount > 0) plAvg /= plCount;
+
+    var gap = Math.abs(bkAvg - plAvg);
+    if (gap >= 1.5 && bkCount > 0 && plCount > 0) {
+      var strongerSide = bkAvg > plAvg ? 'B' : 'P';
+      result.push({
+        type: 'point_strength',
+        side: strongerSide,
+        bankerAvg: bkAvg,
+        playerAvg: plAvg,
+        gap: gap,
+        confidence: gap >= 3 ? '高' : '中'
+      });
+    }
+
+    // 16b. 6点规则
+    for (var pi = 0; pi < recent.length; pi++) {
+      const e = recent[pi];
+      if (e.actualResult === 'T') continue;
+      if (e.bankerPoint === 6 && e.playerPoint != null && e.actualResult === 'P') {
+        result.push({ type: 'point_six_rule', subRule: 'a', side: 'P', confidence: '中' });
+      }
+      if (e.playerPoint != null && e.playerPoint >= 7 && e.actualResult === 'P') {
+        result.push({ type: 'point_six_rule', subRule: 'b', side: 'B', confidence: '低' });
+      }
+      if (e.bankerPoint != null && e.bankerPoint >= 7 && e.actualResult === 'P') {
+        result.push({ type: 'point_six_rule', subRule: 'c', side: 'P', confidence: '中' });
+      }
+    }
+
+    // 16c. 6点庄被补死
+    for (var pi = 0; pi < recent.length; pi++) {
+      const e = recent[pi];
+      if (e.bankerPoint === 6 && e.bankerDrew && e.actualResult === 'P') {
+        result.push({ type: 'point_six_supplement', side: 'P', confidence: '高' });
+      }
+    }
+
+    return result;
+  })();
+
+  for (var psi = 0; psi < pointSignals.length; psi++) {
+    signals.push(pointSignals[psi]);
+  }
+
+  // --- 检测长龙尾（6+连存在于路中，可能干扰反规律判断） ---
+  const hasDragonTail = (function() {
+    if (nr.length < 6) return false;
+    let sl2 = 1;
+    for (let i = 1; i < nr.length; i++) {
+      if (nr[i] === nr[i-1]) { sl2++; if (sl2 >= 6) return true; }
+      else sl2 = 1;
+    }
+    return sl2 >= 6;
+  })();
+
+  // --- 检测庄闲比例是否悬殊（>65%或<35%） ---
+  const hasRatioExtreme = bCount + pCount > 10 && (bPct > 65 || bPct < 35);
+
+  // --- 构建上下文 ---
+  const context = {
+    basicStats: { bCount, pCount, tCount, bPct, pPct },
+    features: { hasDoubleDragon, hasGoldenFinger, has33, hasDragonTail, hasRatioExtreme },
+    recentTrend: { nr, last, last5, last10 },
+    threeRoadResult: threeRoadResult,
+    condCtx: {
+      no33: !has33,
+      noDoubleDragon: !hasDoubleDragon,
+      noGoldenFinger: !hasGoldenFinger,
+      noDragonTail: !hasDragonTail,
+      noRatioExtreme: !hasRatioExtreme,
+    }
+  };
+
+  _perceiveCache = { signals: signals, context: context };
+  _perceiveCacheKey = cacheKey;
+  return _perceiveCache;
+}
+
+// ============================================================
+// 核心分析引擎
+// ============================================================
+function analyze() {
+  const r = state.road;
+  if (r.length < 3) {
+    return { suggestions: [], betAdvice: null, signals: [], threeRoadResult: null, betSizeMultiplier: 1.0 };
+  }
+
+  // Phase 1: 感知层 - 调用 perceive() 获取结构化信号
+  const perception = perceive(r, state.sessionLog);
+  const signals = perception.signals;
+  const nr = perception.context.recentTrend.nr;
+  const last5 = perception.context.recentTrend.last5;
+  const bCount = perception.context.basicStats.bCount;
+  const pCount = perception.context.basicStats.pCount;
+  const hasDoubleDragon = perception.context.features.hasDoubleDragon;
+  const hasGoldenFinger = perception.context.features.hasGoldenFinger;
+  const has33 = perception.context.features.has33;
+  const threeRoadResult = perception.context.threeRoadResult;
+  const condCtx = perception.context.condCtx;
+
+  let suggestions = [];
 
   // ============================================================
   // 生成策略建议
@@ -1589,18 +2483,20 @@ function analyze() {
               else break;
             }
             if (breakLen > maxGun) break;
-            const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
-            const failCount = state.strategyFailures['长龙回头不过3'] || 0;
-            const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
-            const confBase = hasDoubleDragon ? '极低' : '低';
-            const confMap = { 0: confBase, 1: '低', 2: '极低', 3: '极低' };
-            const fConf = confMap[failCount > 3 ? 3 : failCount] || '极低';
+            // [决策框架] 条件检查 + 信心校准
+            const drCond = evaluateConditions('长龙回头不过3', condCtx);
+            if (drCond.severity === '禁用') break;
+            const drFailCount = state.strategyFailures['长龙回头不过3'] || 0;
+            const drHasNote = drCond.severity === '降级' ? ' ⚠️双联龙慎用' : '';
+            const drFailNote = drFailCount > 0 ? ' ⚠️已失败' + drFailCount + '次' : '';
+            const drBaseConf = drCond.severity === '降级' ? '极低' : '低';
+            const drConf = calculateConfidence('长龙回头不过3', drBaseConf);
             suggestions.push({
-              title: '🐉 长龙回头不过' + maxGun + hasDD + failNote,
-              desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断 → 打' + (opposite === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅33.3%，谨慎）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '已失败' + failCount + '次' : ''),
+              title: '🐉 长龙回头不过' + maxGun + drHasNote + drFailNote,
+              desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '已断 → 打' + (opposite === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅33.3%，谨慎）' + (drCond.severity === '降级' ? '双联龙慎用' : '') + (drFailCount > 0 ? '已失败' + drFailCount + '次' : ''),
               action: opposite,
-              actionLabel: '下注' + (opposite === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
-              confidence: fConf,
+              actionLabel: '下注' + (opposite === 'B' ? '👑庄' : '👤闲') + (drHasNote || drFailNote),
+              confidence: drConf,
               strategy: '长龙回头不过3',
               type: '负追'
             });
@@ -1615,18 +2511,20 @@ function analyze() {
           const bdMaxGun = sig.length >= 8 ? 4 : 3;
           // 负追上限检查：打断方当前连数已超过"不过N"则停止建议
           if (sig.breakLength > bdMaxGun) break;
-          const hasDD = hasDoubleDragon ? ' ⚠️双联龙慎用' : '';
-          const failCount = state.strategyFailures['长龙回头不过3'] || 0;
-          const failNote = failCount > 0 ? ' ⚠️已失败' + failCount + '次' : '';
-          const confBase = hasDoubleDragon ? '极低' : '低';
-          const confMap = { 0: confBase, 1: '低', 2: '极低', 3: '极低' };
-          const fConf = confMap[failCount > 3 ? 3 : failCount] || '极低';
+          // [决策框架] 条件检查 + 信心校准
+          const bdCond = evaluateConditions('长龙回头不过3', condCtx);
+          if (bdCond.severity === '禁用') break;
+          const bdFailCount = state.strategyFailures['长龙回头不过3'] || 0;
+          const bdHasNote = bdCond.severity === '降级' ? ' ⚠️双联龙慎用' : '';
+          const bdFailNote = bdFailCount > 0 ? ' ⚠️已失败' + bdFailCount + '次' : '';
+          const bdBaseConf = bdCond.severity === '降级' ? '极低' : '低';
+          const bdConf = calculateConfidence('长龙回头不过3', bdBaseConf);
           suggestions.push({
-            title: '🐉 长龙回头不过' + bdMaxGun + hasDD + failNote,
-            desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '→' + (sig.breakType === 'B' ? '庄' : '闲') + '已断，打' + (bdOpp === 'B' ? '庄' : '闲') + '（⚠️准确率仅33.3%，已降级）' + (hasDoubleDragon ? '双联龙慎用' : '') + (failCount > 0 ? '已失败' + failCount + '次' : ''),
+            title: '🐉 长龙回头不过' + bdMaxGun + bdHasNote + bdFailNote,
+            desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + '→' + (sig.breakType === 'B' ? '庄' : '闲') + '已断，打' + (bdOpp === 'B' ? '庄' : '闲') + '（⚠️准确率仅33.3%，已降级）' + (bdCond.severity === '降级' ? '双联龙慎用' : '') + (bdFailCount > 0 ? '已失败' + bdFailCount + '次' : ''),
             action: bdOpp,
-            actionLabel: '下注' + (bdOpp === 'B' ? '👑庄' : '👤闲') + (hasDD || failNote),
-            confidence: fConf,
+            actionLabel: '下注' + (bdOpp === 'B' ? '👑庄' : '👤闲') + (bdHasNote || bdFailNote),
+            confidence: bdConf,
             strategy: '长龙回头不过3',
             type: '负追'
           });
@@ -1636,13 +2534,14 @@ function analyze() {
       case 'jump':
         if (sig.length >= 3) {
           const nextBet = nr[nr.length - 1] === 'B' ? 'P' : 'B';
-          const conf = sig.length >= 6 ? '高' : (sig.length >= 4 ? '中' : '低');
+          const jumpBaseConf = sig.length >= 6 ? '高' : (sig.length >= 4 ? '中' : '低');
+          const jumpConf = calculateConfidence('王者单跳', jumpBaseConf);
           suggestions.push({
             title: '⚡ 单跳追击',
             desc: sig.length + '连跳中 → 打' + (nextBet === 'B' ? '庄' : '闲') + '延续单跳',
             action: nextBet,
             actionLabel: '下注' + (nextBet === 'B' ? '👑庄' : '👤闲'),
-            confidence: conf,
+            confidence: jumpConf,
             strategy: '王者单跳',
             type: '平推'
           });
@@ -1651,60 +2550,77 @@ function analyze() {
 
       case 'triple_one':
         // 书中原文：BBB+P → 打庄，PPP+B → 打闲（打原始3连方向，对抗打断方）
-        const opp = sig.streak;
+        var t1Cond = evaluateConditions('三一式打法', condCtx);
+        if (t1Cond.severity === '禁用') break;
+        var t1Opp = sig.streak;
         suggestions.push({
           title: '🔢 三一式打法',
-          desc: '3' + (sig.streak === 'B' ? '庄' : '闲') + '+1' + (sig.opposite === 'B' ? '庄' : '闲') + ' → 打' + (opp === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅38.8%，已降级）',
-          action: opp,
-          actionLabel: '下注' + (opp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '低',
+          desc: '3' + (sig.streak === 'B' ? '庄' : '闲') + '+1' + (sig.opposite === 'B' ? '庄' : '闲') + ' → 打' + (t1Opp === 'B' ? '庄' : '闲') + '（⚠️数据验证准确率仅38.8%，已降级）',
+          action: t1Opp,
+          actionLabel: '下注' + (t1Opp === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('三一式打法', '低'),
           strategy: '三一式打法',
           type: '负追'
         });
         break;
 
+      case 'trend_follow':
+        // 追趋势：上局出什么就下什么，数据验证胜率 53.7%
+        var tfDir = sig.direction;
+        var tfConfirmPct = Math.round(sig.confirmRate * 100);
+        var tfBaseConf = sig.confirmRate >= 0.55 ? '高' : (sig.confirmRate >= 0.50 ? '中' : '低');
+        var tfConf = calculateConfidence('追趋势', tfBaseConf);
+        suggestions.push({
+          title: '📈 追趋势（数据验证53.7%）',
+          desc: '趋势确认率' + tfConfirmPct + '%，上局出' + (tfDir === 'B' ? '庄' : '闲') + ' → 追' + (tfDir === 'B' ? '庄' : '闲'),
+          action: tfDir,
+          actionLabel: '下注' + (tfDir === 'B' ? '👑庄' : '👤闲'),
+          confidence: tfConf,
+          strategy: '追趋势',
+          type: '平推'
+        });
+        break;
+
       case 'counter_pattern':
         const cpOpp = sig.first === 'B' ? 'P' : 'B';
-        // 失败追踪
+        // [决策框架] 信号级条件上下文合并
+        var cpCtx = Object.assign({}, condCtx, {
+          noDragonTail: !sig.isDragonTail,
+          noRatioExtreme: sig.ratioNote !== '比例悬殊',
+        });
+        var cpCond = evaluateConditions('反规律打法', cpCtx);
+        if (cpCond.severity === '禁用') break;
         const cpFail = state.strategyFailures['反规律打法'] || 0;
         const cpFailNote = cpFail > 0 ? ' ⚠️已失败' + cpFail + '次' : '';
         // 书中原意：纯反规律命中率 4+4<5+5<6+6<7+7
         // 但龙尾反规律 + 比例悬殊时大幅降低可信度
-        let cpConf = sig.length >= 6 ? '极高' : (sig.length >= 5 ? '中-高' : '中');
-        let cpDesc, cpLabel, cpNote;
+        let cpBaseConf, cpDesc, cpLabel, cpNote;
         if (sig.isDragonTail) {
-          // 龙尾截取的伪4+4——书中强调避开此类：前方成龙时反规律可靠性骤降
+          cpBaseConf = sig.length >= 7 ? '中' : (sig.length >= 5 ? '低' : '极低');
           const tailDesc = sig.first === 'B' ? '庄' : '闲';
-          cpConf = sig.length >= 7 ? '中' : (sig.length >= 5 ? '低' : '极低');
           cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
             + ' ⚠️ 含' + (sig.tailExtra + sig.length) + '连' + tailDesc + '长龙尾，非纯正4+4'
             + (sig.ratioNote === '比例悬殊' ? '，且' + sig.ratioNote + '建议观望或极小注试探' : '，降低注码谨慎出手');
           cpLabel = '⚡小注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
           cpNote = '长龙尾反规律（书中：成龙后不宜重注反规律，先观察1-2手）';
         } else if (sig.ratioNote === '比例悬殊') {
-          cpConf = sig.length >= 7 ? '高' : (sig.length >= 5 ? '中' : '低');
+          cpBaseConf = sig.length >= 7 ? '高' : (sig.length >= 5 ? '中' : '低');
           cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
             + ' ⚠️ 庄闲比例悬殊，降低注码至50%';
           cpLabel = '⚠️半注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
           cpNote = '比例悬殊影响反规律命中率（书中第10章强调）';
         } else {
+          cpBaseConf = sig.length >= 6 ? '极高' : (sig.length >= 5 ? '中-高' : '中');
           cpDesc = sig.length + (sig.first === 'B' ? '庄' : '闲') + '+' + sig.length + (sig.second === 'B' ? '庄' : '闲')
             + ' → 打' + (cpOpp === 'B' ? '庄' : '闲') + '一枪必中';
           cpLabel = '🔥重注' + (cpOpp === 'B' ? '👑庄' : '👤闲');
           cpNote = '反规律+穿透性打法配合使用效果更佳';
         }
-        // 失败后降信心
-        const cpFailMap = { 0: cpConf, 1: '中', 2: '低', 3: '极低' };
-        let adjConf = cpFailMap[cpFail > 3 ? 3 : cpFail] || cpConf;
-        // 穿透性打法：反规律失败后再次形成相同规律→命中率更高（书中独立章节）
-        // 健康指数：A（1+X+X+1）> B（2+X+X+2）> C（3+X+X+3+）
+        // 穿透性打法升信心
         const penLabel = sig.isPenetration ? ' 🔁穿透' : '';
         const penHealthLabel = sig.isPenetration ? ' [健康' + sig.penHealth + ']' : '';
-        const boostMap = { '极低': '低', '低': '中', '中': '高', '高': '极高', '极高': '极高' };
-        if (sig.isPenetration) {
-          adjConf = boostMap[adjConf] || adjConf; // 穿透性升一级
-          if (sig.penHealth === 'A') adjConf = boostMap[adjConf] || adjConf; // A等再升一级
-        }
+        var cpBoost = sig.isPenetration ? (sig.penHealth === 'A' ? 'double' : 'single') : null;
+        const cpConf = calculateConfidence('反规律打法', cpBaseConf, { boost: cpBoost });
         const cpAdjNote = (sig.isPenetration ? '穿透性打法-破防概率：反规律失败后规律延续，健康' + sig.penHealth + '，命中率更高' : '')
           || (cpFail > 0 ? cpNote + '（⚠️最近已失败' + cpFail + '次，降注谨慎）' : cpNote);
         suggestions.push({
@@ -1712,7 +2628,7 @@ function analyze() {
           desc: (sig.isPenetration ? '🔁 穿透性反规律：规律延续，健康' + sig.penHealth + '，命中率↑ ' : '') + cpDesc + (cpFail > 0 && !sig.isPenetration ? '（最近已失败' + cpFail + '次）' : ''),
           action: cpOpp,
           actionLabel: sig.isPenetration ? '💥穿透' + (cpOpp === 'B' ? '👑庄' : '👤闲') : cpLabel,
-          confidence: adjConf,
+          confidence: cpConf,
           strategy: '反规律打法',
           type: '重注',
           note: cpAdjNote
@@ -1728,7 +2644,7 @@ function analyze() {
             + (sig.mode === 'broken_follow' ? '（关注后续小梯形入口）' : ''),
           action: ltOpp,
           actionLabel: '下注' + (ltOpp === 'B' ? '👑庄' : '👤闲') + ' 负追2枪',
-          confidence: '中-高',
+          confidence: calculateConfidence('一四式三角形', '中-高'),
           strategy: '一四式三角形',
           type: '负追'
         });
@@ -1742,7 +2658,7 @@ function analyze() {
           desc: '出现' + (sig.first === 'B' ? '庄' : '闲') + '+' + (sig.pair === 'B' ? '庄庄' : '闲闲') + ' → 关注一四式打法',
           action: orOpp,
           actionLabel: '下注' + (orOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中',
+          confidence: calculateConfidence('一四式三角形', '中'),
           strategy: '一四式三角形',
           type: '负追'
         });
@@ -1765,7 +2681,7 @@ function analyze() {
           desc: sig.jumpLength + '连跳断了转' + (sig.streakType === 'B' ? '庄' : '闲') + ' → 打' + (jdOpp === 'B' ? '庄' : '闲') + '，负追3枪',
           action: jdOpp,
           actionLabel: '下注' + (jdOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '极高',
+          confidence: calculateConfidence('单跳长龙不过3', '中'),
           strategy: '单跳长龙不过3',
           type: '负追'
         });
@@ -1773,14 +2689,14 @@ function analyze() {
       }
 
       case 'golden_finger': {
-        const gfOpp = nr[nr.length - 1] === 'B' ? 'P' : 'B';
-        const gfConf = sig.size === 'big' ? '低' : '低';
+        const gfFollow = nr[nr.length - 1];
+        const gfBaseConf = sig.size === 'big' ? '中' : '低';
         suggestions.push({
           title: '🖐️ ' + (sig.size === 'big' ? '大' : '小') + '金手指（' + sig.count + '条下拉）',
           desc: '形成' + sig.count + '条交替下拉路，出什么打什么' + (sig.size === 'big' ? '（大金手指可胜进）' : '（小金手指保守注码）'),
-          action: gfOpp,
-          actionLabel: sig.size === 'big' ? '🔥胜进' + (gfOpp === 'B' ? '👑庄' : '👤闲') : '⚡小注' + (gfOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: gfConf,
+          action: gfFollow,
+          actionLabel: sig.size === 'big' ? '🔥胜进' + (gfFollow === 'B' ? '👑庄' : '👤闲') : '⚡小注' + (gfFollow === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('金手指打法', gfBaseConf),
           strategy: '金手指打法',
           type: '胜进'
         });
@@ -1794,7 +2710,7 @@ function analyze() {
           desc: '形成' + (sig.start === 'B' ? '庄' : '闲') + (sig.start === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + (sig.pair2 === 'B' ? '庄' : '闲') + ' → ⚠️数据证实此策略显著差于随机(胜率31.5%)',
           action: ppOpp,
           actionLabel: '下注' + (ppOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '极低',
+          confidence: calculateConfidence('排排连高端玩法', '极低'),
           strategy: '排排连高端玩法',
           type: '负追'
         });
@@ -1808,7 +2724,7 @@ function analyze() {
           desc: '一房带两厅(' + (sig.first === 'B' ? '庄' : '闲') + '+' + (sig.pair === 'B' ? '庄庄' : '闲闲') + ')断裂 → 打' + (orbOpp === 'B' ? '庄' : '闲') + '赌它断',
           action: orbOpp,
           actionLabel: '下注' + (orbOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中',
+          confidence: calculateConfidence('一四式三角形', '中'),
           strategy: '一四式三角形',
           type: '负追'
         });
@@ -1841,7 +2757,7 @@ function analyze() {
           desc: sig.length + '连' + (sig.subtype === 'B' ? '庄' : '闲') + cdPos + '，博断打' + (cdOpp === 'B' ? '庄' : '闲') + '，负追3枪',
           action: cdOpp,
           actionLabel: '⚔️斩龙 ' + (cdOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: cdConf,
+          confidence: calculateConfidence('斩龙/三断长龙', cdConf),
           strategy: '斩龙/三断长龙',
           type: '负追'
         });
@@ -1856,7 +2772,7 @@ function analyze() {
           desc: ltLabel + '形成 → 打' + (ltOpp === 'B' ? '庄' : '闲') + '反跳，负追2枪',
           action: ltOpp,
           actionLabel: '📐 ' + (ltOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中',
+          confidence: calculateConfidence('大三打法', '中'),
           strategy: '大三打法',
           type: '负追'
         });
@@ -1865,14 +2781,14 @@ function analyze() {
 
       case 'cross_combo': {
         const ccOpp = sig.firstType === 'B' ? 'P' : 'B';
-        const ccConf = sig.isDragonTail ? '中' : '中-高';
+        const ccBaseConf = sig.isDragonTail ? '中' : '中-高';
         const ccNote = sig.isDragonTail ? '含长龙尾，降低注码' : (sig.isAlreadyTriple ? '已接近三一式范围' : '');
         suggestions.push({
           title: '🔄 交叉性组合 ' + sig.firstType + sig.firstType + sig.firstType + sig.firstType + '+' + sig.breakType,
           desc: '4+1信号 → 打' + (ccOpp === 'B' ? '庄' : '闲') + '反向2枪' + (ccNote ? '（' + ccNote + '）' : ''),
           action: ccOpp,
           actionLabel: '🔄' + (ccOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: ccConf,
+          confidence: calculateConfidence('交叉性组合打法', ccBaseConf),
           strategy: '交叉性组合打法',
           type: '负追'
         });
@@ -1887,7 +2803,7 @@ function analyze() {
           desc: '双跳延伸至' + djLen + '连 → 打' + (djOpp === 'B' ? '庄' : '闲') + '，负追3枪',
           action: djOpp,
           actionLabel: '🎯' + (djOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中',
+          confidence: calculateConfidence('双跳狙击型', '中'),
           strategy: '双跳狙击型',
           type: '负追'
         });
@@ -1895,13 +2811,13 @@ function analyze() {
       }
 
       case 'dragon_predict': {
-        const dpDir = nr[nr.length - 1] === 'B' ? 'P' : 'B';
+        const dpDir = nr[nr.length - 1]; // 追第二条龙：顺着当前趋势方向打
         suggestions.push({
           title: '🔮 预测第二条龙（第' + sig.handsSince + '手）',
           desc: '前有' + sig.pastDragonLen + '连龙，从第4位开始轻注追第二条龙 → 打' + (dpDir === 'B' ? '庄' : '闲'),
           action: dpDir,
           actionLabel: '🔮轻注' + (dpDir === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中',
+          confidence: calculateConfidence('预测长龙', '中'),
           strategy: '预测长龙',
           type: '胜进'
         });
@@ -1915,10 +2831,134 @@ function analyze() {
           desc: sig.dragonLen + '连龙回头→找龙尾→龙尾跳信号，打' + (dtjOpp === 'B' ? '庄' : '闲') + '反跳，不过3',
           action: dtjOpp,
           actionLabel: '🦎' + (dtjOpp === 'B' ? '👑庄' : '👤闲'),
-          confidence: '中-高',
+          confidence: calculateConfidence('长龙回头龙尾跳', '中-高'),
           strategy: '长龙回头龙尾跳',
           type: '负追'
         });
+        break;
+      }
+
+      case 'point_strength': {
+        suggestions.push({
+          title: '🃏 点数优势（庄均' + sig.bankerAvg.toFixed(1) + ' vs 闲均' + sig.playerAvg.toFixed(1) + '）',
+          desc: '近' + sig.bankerAvg.toFixed(1) + ':' + sig.playerAvg.toFixed(1) + '，差距' + sig.gap.toFixed(1) + '点 → 打' + (sig.side === 'B' ? '庄' : '闲'),
+          action: sig.side,
+          actionLabel: (sig.side === 'B' ? '👑庄' : '👤闲') + ' 点数优势',
+          confidence: sig.confidence,
+          strategy: '点数优势',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'point_six_rule': {
+        var sixDesc = '', sixLabel = '';
+        if (sig.subRule === 'a') {
+          sixDesc = '庄6且闲赢 → 闲势强，打闲';
+          sixLabel = '👤闲 庄6被破';
+        } else if (sig.subRule === 'b') {
+          sixDesc = '闲≥7 → 大点出闲，下局打庄';
+          sixLabel = '👑庄 闲出大点';
+        } else {
+          sixDesc = '庄≥7被闲赢 → 闲势不可挡，打闲';
+          sixLabel = '👤闲 庄大点输';
+        }
+        suggestions.push({
+          title: '🔢 6点规则(' + sig.subRule.toUpperCase() + ')',
+          desc: sixDesc,
+          action: sig.side,
+          actionLabel: sixLabel,
+          confidence: sig.confidence,
+          strategy: '6点规则',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'point_six_supplement': {
+        suggestions.push({
+          title: '🃏 6点庄被补死',
+          desc: '庄6被补+闲赢 → 闲势极强，下局打闲',
+          action: 'P',
+          actionLabel: '👤闲 6补死',
+          confidence: calculateConfidence('6点庄补死', '高'),
+          strategy: '6点庄补死',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'three_road_confirm': {
+        var confirmDir = sig.direction;
+        suggestions.push({
+          title: '✅ 大眼路' + sig.beCount + '连红确认',
+          desc: '大眼路连续' + sig.beCount + '个红标记，趋势极强，' + (confirmDir === 'B' ? '庄' : '闲') + '势可追',
+          action: confirmDir,
+          actionLabel: '✅ 三路确认 ' + (confirmDir === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('三路验证', '高'),
+          strategy: '三路验证',
+          type: '重注'
+        });
+        break;
+      }
+
+      case 'three_road_warning': {
+        var warnDir = sig.direction;
+        var opp = warnDir === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '⚠️ 大眼路' + sig.beCount + '连蓝预警',
+          desc: '大眼路连续' + sig.beCount + '个蓝标记，' + (warnDir === 'B' ? '庄' : '闲') + '势极弱，建议反向或观望',
+          action: opp,
+          actionLabel: '⚠️ 三路预警 ' + (opp === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('三路验证', '中'),
+          strategy: '三路验证',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'three_road_divergence': {
+        var lastRes = nr[nr.length - 1];
+        var revDir = lastRes === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '🔄 三路分歧·趋势可能反转',
+          desc: '三路从同色转为分歧，趋势可能即将反转，轻注试探' + (revDir === 'B' ? '庄' : '闲'),
+          action: revDir,
+          actionLabel: '🔄 反转试探 ' + (revDir === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('三路验证', '低'),
+          strategy: '三路验证',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'three_road_top_signal': {
+        var lastRes2 = nr[nr.length - 1];
+        var revDir2 = lastRes2 === 'B' ? 'P' : 'B';
+        suggestions.push({
+          title: '📉 短期见顶·大眼转蓝+小路蓝',
+          desc: '大眼路由红转蓝且小路为蓝，短期可能见顶，打' + (revDir2 === 'B' ? '庄' : '闲') + '博反转',
+          action: revDir2,
+          actionLabel: '📉 见顶反打 ' + (revDir2 === 'B' ? '👑庄' : '👤闲'),
+          confidence: calculateConfidence('三路验证', '低'),
+          strategy: '三路验证',
+          type: '平推'
+        });
+        break;
+      }
+
+      case 'three_road_shift': {
+        if (sig.direction === 'weakening') {
+          suggestions.push({
+            title: '📊 大眼路红率下降' + Math.round(Math.abs(sig.beRateDelta) * 100) + '%',
+            desc: '大眼路近期红率明显下降，趋势减弱，缩减注码',
+            action: null,
+            actionLabel: '⚪ 减注观望',
+            confidence: calculateConfidence('三路验证', '低'),
+            strategy: '三路验证',
+            type: '观望'
+          });
+        }
         break;
       }
     }
@@ -1939,66 +2979,27 @@ function analyze() {
         type: '平推'
       });
     } else if (nr.length >= 2) {
-      // 推荐打闲（书中核心思想：多打闲避抽水）
+      // 无明确信号时建议观望（职业玩家30-50%时间不投注）
       suggestions.push({
-        title: '👤 平推闲（推荐）',
-        desc: '无明确信号，按书中核心思想平推闲',
-        action: 'P',
-        actionLabel: '下注👤闲',
-        confidence: '低',
+        title: '⏸️ 建议观望',
+        desc: '无明确信号，职业纪律建议观望，等待确定性更高的机会',
+        action: null,
+        actionLabel: '⏸️ 观望',
+        confidence: '极低',
         strategy: '不输为赢',
-        type: '平推'
+        type: '观望'
       });
     }
   }
 
-  // 信心优先级映射（全局）
-  const priority = { '极高': 0, '高': 1, '中-高': 2, '中': 3, '低': 4, '极低': 5 };
+  // --- 三路信心修正 ---
+  suggestions = applyThreeRoadConfidenceModifiers(suggestions, threeRoadResult, r);
 
-  // --- 策略互斥消解：当多个建议方向冲突时，按规则保留最优 ---
-  // 禁止同一局同时推荐相反的押注方向（庄 vs 闲）
-  if (suggestions.length >= 2) {
-    const dirs = [...new Set(suggestions.map(s => s.action))].filter(d => d === 'B' || d === 'P');
-    if (dirs.length >= 2) {
-      // 策略级优先级（同信心时按此排序）
-      const sp = {
-        '单跳长龙不过3': 0, '长龙回头不过3': 8, '反规律打法': 2,
-        '一四式三角形': 3, '三一式打法': 8, '排排连高端玩法': 9,
-        '金手指打法': 6, '王者单跳': 7, '长龙观望': 8, '不输为赢': 9,
-        '斩龙/三断长龙': 2, '长龙回头龙尾跳': 3, '交叉性组合打法': 4, '大三打法': 5,
-        '双跳狙击型': 6, '预测长龙': 8
-      };
-      // 每方向仅保留最佳一条
-      const best = {};
-      for (const s of suggestions) {
-        if (s.action !== 'B' && s.action !== 'P') continue;
-        const k = s.action;
-        if (!best[k] ||
-            (priority[s.confidence] || 9) < (priority[best[k].confidence] || 9) ||
-            ((priority[s.confidence] || 9) === (priority[best[k].confidence] || 9) &&
-             (sp[s.strategy] || 99) < (sp[best[k].strategy] || 99))) {
-          best[k] = s;
-        }
-      }
-      // 对比两个方向 → 保留更高优先级的方向，剔除另一方向全部建议
-      const dirList = Object.keys(best);
-      if (dirList.length >= 2) {
-        dirList.sort((a, b) => {
-          const da = priority[best[a].confidence] || 9;
-          const db = priority[best[b].confidence] || 9;
-          if (da !== db) return da - db;
-          return (sp[best[a].strategy] || 99) - (sp[best[b].strategy] || 99);
-        });
-        const winnerDir = dirList[0];
-        suggestions = suggestions.filter(s =>
-          s.action === winnerDir || (s.action !== 'B' && s.action !== 'P')
-        );
-      }
-    }
-  }
+  // --- Phase 3: 仲裁层 --- 加权投票消解方向冲突
+  var arbitration = arbitrate(suggestions);
 
   // 按优先级排序
-  suggestions.sort((a, b) => (priority[a.confidence] || 9) - (priority[b.confidence] || 9));
+  suggestions.sort(function(a, b) { return (confOrder[a.confidence] || 9) - (confOrder[b.confidence] || 9); });
 
   // 过滤已禁用的策略
   suggestions = suggestions.filter(function(s) {
@@ -2016,13 +3017,13 @@ function analyze() {
       strategy: '不输为赢',
       type: '观望'
     });
+    arbitration = arbitrate(suggestions);
   }
 
   // --- 负追续追覆盖：如果当前有活跃负追，覆盖推荐 ---
   if (state.chaseState && state.chaseState.gunsUsed < state.chaseState.maxGuns) {
     var chaseNextGun = state.chaseState.gunsUsed + 1;
     var chaseLabel = '负追第' + chaseNextGun + '枪/' + state.chaseState.maxGuns;
-    // 构建负追推荐（优先级最高）
     var chaseSuggestion = {
       title: '🎯 ' + state.chaseState.strategy + ' ' + chaseLabel,
       desc: '负追续追中，继续打' + (state.chaseState.direction === 'B' ? '庄' : '闲') + '，第' + chaseNextGun + '枪',
@@ -2032,14 +3033,50 @@ function analyze() {
       strategy: state.chaseState.strategy,
       type: '负追'
     };
-    // 插入到建议列表最前面
     suggestions.unshift(chaseSuggestion);
   }
 
-  // 最佳建议
-  const bestAdvice = suggestions.length > 0 ? suggestions[0] : null;
+  // --- 负追冷却过滤：全输后同形态5手内不重复推荐 ---
+  suggestions = suggestions.filter(function(s) {
+    return !isChaseCooling(s.strategy);
+  });
 
-  return { suggestions, betAdvice: bestAdvice, signals };
+  // --- 三路风险调整 ---
+  var riskAdj = applyThreeRoadRiskAdjustment(suggestions, threeRoadResult);
+  suggestions = riskAdj.suggestions;
+
+  // --- Phase 3: 最佳建议选择 (仲裁结果 vs 负追覆盖) ---
+  var bestAdvice;
+  if (state.chaseState && state.chaseState.gunsUsed < state.chaseState.maxGuns) {
+    bestAdvice = suggestions[0];
+  } else if (arbitration.betAdvice) {
+    var arbStrat = arbitration.betAdvice.strategy;
+    var arbConf = arbitration.betAdvice.confidence;
+    var arbStillExists = false;
+    for (var _ai = 0; _ai < suggestions.length; _ai++) {
+      if (suggestions[_ai].strategy === arbStrat && suggestions[_ai].confidence === arbConf) {
+        arbStillExists = true;
+        break;
+      }
+    }
+    bestAdvice = arbStillExists ? arbitration.betAdvice : (suggestions.length > 0 ? suggestions[0] : null);
+  } else {
+    bestAdvice = suggestions.length > 0 ? suggestions[0] : null;
+  }
+
+  // --- Phase 3: 执行层 + 决策追溯 ---
+  var execCtx = {
+    betSizeMultiplier: riskAdj.betSizeMultiplier,
+    capital: state.capital,
+    settings: state.settings,
+    chaseState: state.chaseState,
+    isLiveMode: state.isLiveMode,
+    threeRoadResult: threeRoadResult
+  };
+  var execution = execute(arbitration, execCtx);
+  var decisionTrace = buildDecisionTrace(perception, suggestions, arbitration, execution);
+
+  return { suggestions: suggestions, betAdvice: bestAdvice, signals: signals, threeRoadResult: threeRoadResult, betSizeMultiplier: riskAdj.betSizeMultiplier, decisionTrace: decisionTrace };
 }
 
 // ============================================================
@@ -2051,34 +3088,29 @@ function renderRoad() {
   board.innerHTML = '';
   const r = state.road;
   if (r.length === 0) {
-    // 显示新手指导
-    for (let i = 0; i < 20; i++) {
+    // 显示空盘占位（6行×6列）
+    board.style.display = 'grid';
+    board.style.gridTemplateRows = 'repeat(6, 28px)';
+    board.style.gridAutoFlow = 'column';
+    board.style.gap = '3px';
+    for (let i = 0; i < 36; i++) {
       const cell = document.createElement('div');
       cell.className = 'road-cell empty';
       board.appendChild(cell);
     }
     return;
   }
-  // 计算行布局：每行20个
-  const maxPerRow = 20;
-  const rows = [];
-  for (let i = 0; i < r.length; i += maxPerRow) {
-    rows.push(r.slice(i, i + maxPerRow));
-  }
-  for (const row of rows) {
-    for (const cell of row) {
-      const div = document.createElement('div');
-      div.className = 'road-cell ' + (cell === 'T' ? 'T' : cell);
-      div.textContent = cell === 'B' ? '庄' : (cell === 'P' ? '闲' : '和');
-      if (cell === 'B') div.style.color = '#fff';
-      board.appendChild(div);
-    }
-    // 补齐空位
-    for (let i = row.length; i < maxPerRow; i++) {
-      const div = document.createElement('div');
-      div.className = 'road-cell empty';
-      board.appendChild(div);
-    }
+  // 传统珠盘路布局：6行×N列，从上到下再从左到右
+  board.style.display = 'grid';
+  board.style.gridTemplateRows = 'repeat(6, 28px)';
+  board.style.gridAutoFlow = 'column';
+  board.style.gap = '3px';
+  for (let i = 0; i < r.length; i++) {
+    const cell = r[i];
+    const div = document.createElement('div');
+    div.className = 'road-cell ' + (cell === 'T' ? 'T' : cell);
+    div.textContent = cell === 'B' ? '庄' : (cell === 'P' ? '闲' : '和');
+    board.appendChild(div);
   }
 
   // 更新计数
@@ -2187,16 +3219,29 @@ function renderStatusBar() {
   if (nr.length >= 5) {
     var trObj = calculateThreeRoads(r);
     var trAnalysis = analyzeThreeRoads(trObj);
-    var iconMap = { strong: '🟢', good: '🟡', neutral: '⚪', caution: '🔵', weak: '⚫' };
-    var trIcon = iconMap[trAnalysis.level] || '⚪';
-    items.push('<span class="status-item">🔍 三路: ' + trIcon + ' ' + trAnalysis.label + '</span>');
+    // 统计最近红蓝分布，显示玩家友好的操作标签
+    var rdCount = 0, blCount = 0;
+    var allDots = trObj.bigEye.concat(trObj.small).concat(trObj.cockroach);
+    for (var di = 0; di < allDots.length; di++) {
+      if (allDots[di] === 'R') rdCount++;
+      else if (allDots[di] === 'B') blCount++;
+    }
+    var ratioStr = '';
+    if (rdCount + blCount >= 3) {
+      ratioStr = '<span style="color:#e94560;">' + rdCount + '红</span>/<span style="color:#4a90d9;">' + blCount + '蓝</span> ';
+    }
+    var riskNote = '';
+    if (state.threeRoadState && state.threeRoadState.riskLevel !== 'normal') {
+      riskNote = state.threeRoadState.riskLevel === 'reduced' ? ' [半注]' : ' [暂停]';
+    }
+    items.push('<span class="status-item" title="' + trAnalysis.action + '">' + ratioStr + trAnalysis.label + riskNote + '</span>');
   }
 
   bar.innerHTML = items.join('');
 }
 
 function renderSuggestions() {
-  const analysis = analyze();
+  const analysis = _cachedAnalysis || analyze();
   const section = document.getElementById('strategySection');
   const countLabel = document.getElementById('suggestionCount');
 
@@ -2208,7 +3253,11 @@ function renderSuggestions() {
 
   countLabel.textContent = analysis.suggestions.length + ' 条';
   section.innerHTML = '';
-  for (let si = 0; si < analysis.suggestions.length; si++) {
+  var maxShow = (analysis.suggestions.length <= 3) ? analysis.suggestions.length : 3;
+  var collapsed = section.getAttribute('data-collapsed') !== 'false';
+  var showCount = collapsed ? maxShow : analysis.suggestions.length;
+  var hiddenCount = analysis.suggestions.length - maxShow;
+  for (let si = 0; si < showCount; si++) {
     const sug = analysis.suggestions[si];
     const isActive = analysis.betAdvice &&
                      si === 0 &&
@@ -2249,6 +3298,18 @@ function renderSuggestions() {
 
     section.appendChild(card);
   }
+
+  // 展开/折叠按钮（超过3条时显示）
+  if (hiddenCount > 0) {
+    var toggleBtn = document.createElement('div');
+    toggleBtn.style.cssText = 'text-align:center;padding:6px;cursor:pointer;color:#aaa;font-size:12px;border-top:1px solid #333;margin-top:4px;';
+    toggleBtn.textContent = collapsed ? ('展开全部 ' + analysis.suggestions.length + ' 条 ▼') : '收起 ▲';
+    toggleBtn.onclick = function() {
+      section.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
+      renderSuggestions();
+    };
+    section.appendChild(toggleBtn);
+  }
 }
 
 // 获取策略的滚动胜率（近15次）
@@ -2286,8 +3347,8 @@ function calculateKellyBet(strategyName, direction, capital) {
   var b = direction === 'P' ? 1.0 : 0.95; // 闲1:1, 庄0.95:1(抽水)
   var kelly = (b * p - q) / b;
   if (kelly <= 0) return 0; // 凯利建议不下注
-  var fraction = state.settings.kellyFraction || 0.25;
-  return Math.round(capital * kelly * fraction);
+  var fraction = Math.min(state.settings.kellyFraction || 0.25, 0.5); // 上限0.5，防止篡改
+  return Math.min(Math.round(capital * kelly * fraction), capital); // 不超本金
 }
 
 // 信心等级 → 赔率级别（四级映射）
@@ -2299,7 +3360,7 @@ function confToTier(confidence, strategyName) {
     '中-高': { label: '三级·高赔率',   pct: 0.08, icon: '🥉', tier: 3 },
     '中':    { label: '二级·中赔率',   pct: 0.05, icon: '🥈', tier: 2 },
     '低':    { label: '一级·平推',     pct: 0.03, icon: '🥇', tier: 1 },
-    '极低':  { label: '一级·平推',     pct: 0.03, icon: '🥇', tier: 1 }
+    '极低':  { label: '观望·极低信心', pct: 0.01, icon: '⚠️', tier: 0 }
   };
   var result = map[confidence] || { label: '一级·平推', pct: 0.03, icon: '🥇', tier: 1 };
 
@@ -2323,7 +3384,7 @@ function confToTier(confidence, strategyName) {
 }
 
 function renderBetAdvice() {
-  const analysis = analyze();
+  const analysis = _cachedAnalysis || analyze();
   const panel = document.getElementById('betAdvicePanel');
   const label = document.getElementById('betAdviceLabel');
 
@@ -2362,6 +3423,18 @@ function renderBetAdvice() {
     tierLabel = '→ ' + tier.label;
   }
 
+  // 三路避险注码调整
+  var finalMultiplier = analysis.betSizeMultiplier || 1.0;
+  var riskBadgeHtml = '';
+  if (analysis.threeRoadResult && analysis.threeRoadResult.riskLevel !== 'normal') {
+    if (analysis.threeRoadResult.riskLevel === 'reduced') {
+      recommendedBet = Math.round(recommendedBet * 0.5);
+      riskBadgeHtml = '<div style="font-size:11px;color:#ffd93d;margin-top:2px;">🟡 三路避险已激活：注码×0.5（大眼路趋势减弱）</div>';
+    } else if (analysis.threeRoadResult.riskLevel === 'suspended') {
+      riskBadgeHtml = '<div style="font-size:11px;color:#e94560;margin-top:2px;">🔴 三路连续弱势信号，强烈建议暂停下注</div>';
+    }
+  }
+
   // 失败追踪 + 滚动胜率
   const failCount = state.strategyFailures[sug.strategy] || 0;
   const rollingWR = getRollingWR(sug.strategy);
@@ -2375,7 +3448,7 @@ function renderBetAdvice() {
       : '');
 
   var kellyInfo = (useKelly && kellyBet !== null && kellyBet > 0)
-    ? '<div style="font-size:10px;color:#9b59b6;margin-top:1px;">📐 Kelly%=' + (kellyBet / state.capital * 100).toFixed(1) + '% 基于' + (sug.strategy) + '历史胜率</div>'
+    ? '<div style="font-size:10px;color:#9b59b6;margin-top:1px;">📐 Kelly%=' + (state.capital > 0 ? (kellyBet / state.capital * 100).toFixed(1) : '0.0') + '% 基于' + (sug.strategy) + '历史胜率</div>'
     : '';
 
   panel.innerHTML =
@@ -2384,10 +3457,108 @@ function renderBetAdvice() {
     '<div style="font-size:11px;color:#666;margin-top:4px;">🎯 当前策略: <b style="color:#e0e0e0;">' + sug.strategy + '</b> · ' + sug.type + '</div>' +
     '<div style="font-size:15px;font-weight:bold;color:' + tierColor + ';margin-top:5px;">' + (useKelly ? '📐' : tier.icon) + ' 推荐注码: <span style="font-size:17px;">' + recommendedBet.toLocaleString() + '</span></div>' +
     '<div style="font-size:11px;color:#888;margin-top:1px;">' + tierLabel + '</div>' +
+    riskBadgeHtml +
     kellyInfo +
     rollingHtml +
     '<div style="font-size:11px;color:#555;margin-top:2px;">' + sug.desc + '</div>' +
     failHtml;
+}
+
+function renderDecisionTrace() {
+  var panel = document.getElementById('decisionTracePanel');
+  var content = document.getElementById('decisionTraceContent');
+  var trace = state.lastDecisionTrace;
+
+  if (!trace) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+
+  var html = '';
+
+  // 信号摘要
+  html += '<div class="trace-section"><div class="trace-section-title">🔍 感知信号 (' + trace.signals.length + ')</div>';
+  for (var i = 0; i < trace.signals.length; i++) {
+    html += '<span class="trace-signal-tag">' + trace.signals[i].details + '</span>';
+  }
+  html += '</div>';
+
+  // 投票明细
+  html += '<div class="trace-section"><div class="trace-section-title">⚖️ 加权投票</div>';
+  var votes = trace.arbitration.votes;
+  for (var vi = 0; vi < votes.length; vi++) {
+    var v = votes[vi];
+    var isWinner = v.direction === trace.arbitration.winner;
+    html += '<div class="trace-vote-row' + (isWinner ? ' trace-vote-winner' : '') + '">';
+    html += '<span>' + (isWinner ? '🏆 ' : '') + '方向' + (v.direction === 'B' ? '庄' : '闲') + '</span>';
+    html += '<span>得分: <b>' + v.totalScore.toFixed(1) + '</b> (' + v.strategies.length + '策略)</span>';
+    html += '</div>';
+    for (var si = 0; si < v.strategies.length; si++) {
+      var st = v.strategies[si];
+      html += '<div style="font-size:10px;color:#666;padding-left:12px;">'
+        + st.strategy + ' (w=' + st.weight.toFixed(1) + ' x c=' + st.confScore + ' = ' + st.vote.toFixed(1) + ')</div>';
+    }
+  }
+  html += '<div style="font-size:10px;color:#888;margin-top:2px;">' + trace.arbitration.reasoning + '</div>';
+  html += '</div>';
+
+  // 执行计划
+  html += '<div class="trace-section"><div class="trace-section-title">🎯 执行计划</div>';
+  var ex = trace.execution;
+  html += '<div style="font-size:10px;">';
+  html += '动作: ' + (ex.action ? (ex.action === 'B' ? '庄' : '闲') : '观望') + '<br>';
+  html += '注码: ' + ex.betSize.toLocaleString() + (ex.tier ? ' (' + ex.tier.label + ')' : '') + '<br>';
+  html += '风险系数: ×' + ex.riskMultiplier.toFixed(1) + '<br>';
+  if (ex.chaseInfo) {
+    if (ex.chaseInfo.type === 'continue') {
+      html += '负追: 续追 第' + ex.chaseInfo.gun + '/' + ex.chaseInfo.maxGuns + '枪<br>';
+    } else {
+      html += '负追: 就绪 ' + ex.chaseInfo.strategy + ' (max ' + ex.chaseInfo.maxGuns + '枪)<br>';
+    }
+  }
+  html += ex.executionNote + '</div></div>';
+
+  content.innerHTML = html;
+}
+
+function toggleDecisionTrace() {
+  var content = document.getElementById('decisionTraceContent');
+  var icon = document.getElementById('traceToggleIcon');
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    icon.textContent = '▲';
+  } else {
+    content.style.display = 'none';
+    icon.textContent = '▼';
+  }
+}
+
+function renderThreeRoadMain() {
+  var panel = document.getElementById('threeRoadMainPanel');
+  var content = document.getElementById('threeRoadMainContent');
+  if (!panel || !content) return;
+  var r = state.road;
+  if (r.length < 6) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  var html = renderThreeRoadPanel(r);
+  content.innerHTML = html;
+}
+
+function toggleThreeRoadMain() {
+  var content = document.getElementById('threeRoadMainContent');
+  var icon = document.getElementById('threeRoadToggleIcon');
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    icon.textContent = '▲';
+  } else {
+    content.style.display = 'none';
+    icon.textContent = '▼';
+  }
 }
 
 function renderBankroll() {
@@ -2412,7 +3583,7 @@ function renderBankroll() {
   document.getElementById('displayBet4').textContent = tier4.toLocaleString();
 
   // 高亮当前建议对应的赔率档位
-  const analysis = analyze();
+  const analysis = _cachedAnalysis || analyze();
   const currentConf = analysis.betAdvice ? analysis.betAdvice.confidence : null;
   const confToIdx = { '极高': 4, '高': 3, '中-高': 3, '中': 2, '低': 1, '极低': 1 };
   const activeIdx = confToIdx[currentConf] || 0;
@@ -2458,6 +3629,12 @@ function renderBankroll() {
   document.getElementById('hdProfit').textContent = (pl >= 0 ? '+' : '') + pl.toLocaleString();
   document.getElementById('hdProfit').className = 'num' + (pl >= 0 ? '' : ' red');
   document.getElementById('hdRounds').textContent = state.road.length;
+  // 存储模式指示器
+  var storeInd = document.getElementById('storageIndicator');
+  if (storeInd) {
+    storeInd.style.display = state._fileStorageEnabled ? '' : 'none';
+    storeInd.title = state._fileStorageEnabled ? '数据同时保存在本地文件，清缓存不丢失' : '';
+  }
   const liveRounds = state.road.length - state.preloadCount;
   document.getElementById('hdLiveRounds').textContent = state.isLiveMode ? Math.max(0, liveRounds) : 0;
 
@@ -2516,10 +3693,22 @@ function updateInitCapital() {
 
 // 当前资金手动变更（用户随时可改）
 function updateCurrentCapital() {
-  const val = parseInt(document.getElementById('inputCapital').value) || 0;
+  var rawVal = document.getElementById('inputCapital').value.trim();
+  var val = parseInt(rawVal);
+  if (rawVal === '' || isNaN(val) || val < 0) {
+    // 输入无效 → 恢复原值
+    document.getElementById('inputCapital').value = state.capital;
+    return;
+  }
+  // 同步修正每日累计盈亏，避免手动调资后提示不更新
+  var delta = val - state.capital;
+  if (delta !== 0) {
+    state.dailyStats.totalPL += delta;
+  }
   state.capital = val;
   state._capitalManuallySet = true;
   state.alertsCleared = false;
+  state._bustAlertShown = false; // 重置破产提示
   renderAll();
 }
 
@@ -2537,16 +3726,52 @@ function adjustCapital(amount) {
 // ============================================================
 
 function renderAll() {
+  _cachedAnalysis = analyze(); // 每帧计算一次，子渲染器复用
   renderRoad();
   renderStats();
   renderStatusBar();
   renderSuggestions();
   renderBetAdvice();
+  renderDecisionTrace();
+  renderThreeRoadMain();
   renderBankroll();
   renderAlerts();
   renderLockState();
   renderHeaderTimer();
+  renderBetControls();
   saveState();
+  _cachedAnalysis = null;
+}
+
+function renderBetControls() {
+  const ctrls = document.getElementById('liveBetControls');
+  if (!ctrls) return;
+  ctrls.style.display = state.isLiveMode ? '' : 'none';
+  // 点数输入区显示/隐藏
+  const ptArea = document.getElementById('pointInputArea');
+  if (ptArea) ptArea.style.display = state.isLiveMode ? '' : 'none';
+  const hint = document.getElementById('betAmountHint');
+  const input = document.getElementById('inputBetAmount');
+  if (!state.isLiveMode) return;
+  // 显示推荐注码作为提示
+  const analysis = _cachedAnalysis || analyze();
+  if (analysis.betAdvice) {
+    const tier = confToTier(analysis.betAdvice.confidence, analysis.betAdvice.strategy);
+    const rec = Math.round(state.capital * tier.pct);
+    hint.textContent = '推荐: ' + rec.toLocaleString();
+    // 如果用户没自定义，清空输入框（placeholder显示推荐值）
+    if (!state.currentBetOverride || state.currentBetOverride <= 0) {
+      input.value = '';
+      input.placeholder = rec.toLocaleString();
+    }
+  } else {
+    hint.textContent = '';
+  }
+  // 照打按钮只在有推荐时显示
+  const quickBtn = document.getElementById('btnQuickFollow');
+  if (quickBtn) {
+    quickBtn.style.display = analysis.betAdvice ? '' : 'none';
+  }
 }
 
 // ============================================================
@@ -2635,7 +3860,11 @@ function compareRoad(col, refCol) {
 }
 
 // 计算三路
+var _threeRoadCache = null;
+var _threeRoadCacheKey = '';
 function calculateThreeRoads(road) {
+  var cacheKey = road.length + '|' + (road.length > 0 ? road[road.length - 1] : '');
+  if (_threeRoadCache && _threeRoadCacheKey === cacheKey) return _threeRoadCache;
   var cols = buildColumns(road);
   var bigEye = [], small = [], cockroach = [];
   // 大眼路：第N列 vs 第N-1列，从第3列开始
@@ -2644,7 +3873,9 @@ function calculateThreeRoads(road) {
   for (var i = 3; i < cols.length; i++) small.push(compareRoad(cols[i], cols[i-2]));
   // 蟑螂路：第N列 vs 第N-3列，从第5列开始
   for (var i = 4; i < cols.length; i++) cockroach.push(compareRoad(cols[i], cols[i-3]));
-  return { bigEye: bigEye, small: small, cockroach: cockroach, colCount: cols.length };
+  _threeRoadCache = { bigEye: bigEye, small: small, cockroach: cockroach, colCount: cols.length };
+  _threeRoadCacheKey = cacheKey;
+  return _threeRoadCache;
 }
 
 // 生成三路HTML（红蓝圆点）
@@ -2695,29 +3926,26 @@ function analyzeThreeRoads(threeRoads) {
   if (be.length < 2 || sm.length < 2) {
     verdict = { label: '数据不足', level: 'info', color: '#888' };
   } else if (allAgree && totalRed >= 2.5) {
-    verdict = { label: '三路同色·趋势极强 ✅', level: 'strong', color: '#4ecca3' };
+    verdict = { label: '三路齐红 🔥', level: 'strong', color: '#e94560', action: '🔥 顺势重注·放心出手' };
   } else if (allAgree && totalRed < 1.5) {
-    verdict = { label: '三路同色·趋势极弱 ❌', level: 'weak', color: '#e94560' };
+    verdict = { label: '三路齐蓝 ❄️', level: 'weak', color: '#4a90d9', action: '🛑 三路全反·建议停手休息' };
   } else if (beVsSm && totalRed >= 2) {
-    verdict = { label: '短期趋势延续 ⚡', level: 'good', color: '#ffd93d' };
+    verdict = { label: '两路偏红 👍', level: 'good', color: '#ff6b6b', action: '👍 趋势向好·正常下注(负追限2枪)' };
   } else if (!beVsSm && totalRed < 2) {
-    verdict = { label: '趋势分歧·观望 ⏳', level: 'caution', color: '#e94560' };
+    verdict = { label: '路单分歧 👀', level: 'caution', color: '#ffd93d', action: '👀 方向不明·减注或观望' };
   } else if (beRate > 0.6 && smRate > 0.6) {
-    verdict = { label: '中长线看好 📈', level: 'good', color: '#4ecca3' };
+    verdict = { label: '中长期偏红 📈', level: 'good', color: '#ff6b6b', action: '👍 偏红趋势·正常出手' };
   } else if (beRate < 0.4 && smRate < 0.4) {
-    verdict = { label: '中长线走弱 📉', level: 'caution', color: '#e94560' };
+    verdict = { label: '中长期偏蓝 📉', level: 'caution', color: '#4a90d9', action: '👀 偏蓝走弱·减注或观望' };
   } else {
-    verdict = { label: '震荡格局 ➡️', level: 'neutral', color: '#888' };
+    verdict = { label: '红蓝拉锯 ⚡', level: 'neutral', color: '#888', action: '⚡ 拉锯震荡·轻注平推即可' };
   }
-  // 操作建议
-  var action = '';
-  if (verdict.level === 'strong') action = '🔴 适合重注，大路策略可放心执行';
-  else if (verdict.level === 'good') action = '🟡 正常下注，缩短负追枪数至2枪';
-  else if (verdict.level === 'neutral') action = '⚪ 只打单跳，轻注平推';
-  else if (verdict.level === 'caution') action = '🔵 暂停下注或极小注试探';
-  else if (verdict.level === 'weak') action = '⚫ 强烈建议观望，不要出手';
-  verdict.action = action;
   verdict.totalRed = totalRed;
+  // 附加最近红蓝标记
+  var lastBe = be.length > 0 ? be[be.length - 1] : null;
+  var lastSm = sm.length > 0 ? sm[sm.length - 1] : null;
+  var lastCr = cr.length > 0 ? cr[cr.length - 1] : null;
+  verdict.lastDots = { bigEye: lastBe, small: lastSm, cockroach: lastCr };
   return verdict;
 }
 
@@ -2732,11 +3960,248 @@ function renderThreeRoadPanel(road) {
   html += '<b>' + analysis.label + '</b>';
   html += '</div>';
   html += '<div style="margin-top:2px;font-size:10px;color:#aaa;">' + analysis.action + '</div>';
-  if (tr.colCount < 5) {
-    html += '<div style="font-size:10px;color:#666;margin-top:2px;">⏳ 至少需要5列数据才能显示三路（当前' + tr.colCount + '列）</div>';
+  if (state.threeRoadState && state.threeRoadState.riskLevel !== 'normal') {
+    var rlColor = state.threeRoadState.riskLevel === 'reduced' ? '#ffd93d' : '#e94560';
+    var rlIcon = state.threeRoadState.riskLevel === 'reduced' ? '🟡' : '🔴';
+    html += '<div style="margin-top:2px;font-size:10px;color:' + rlColor + ';">' + rlIcon + ' 三路避险风险等级: ' + (state.threeRoadState.riskLevel === 'reduced' ? '半注' : '暂停') + '</div>';
+  }
+  if (tr.colCount < 3) {
+    html += '<div style="font-size:10px;color:#666;margin-top:2px;">⏳ 数据不足，需要至少3列才能显示大眼路（当前' + tr.colCount + '列）</div>';
+  } else {
+    var availableRoads = ['大眼路'];
+    if (tr.colCount >= 4) availableRoads.push('小路');
+    if (tr.colCount >= 5) availableRoads.push('蟑螂路');
+    html += '<div style="font-size:10px;color:#666;margin-top:2px;">📊 可用: ' + availableRoads.join('·') + '（当前' + tr.colCount + '列）</div>';
   }
   html += '</div>';
   return html;
+}
+
+// ============================================================
+// 三路综合避险（Phase 2）
+// ============================================================
+
+// 置信度等级映射表（从上到下优先级递减）
+const CONF_TIERS = ['极高', '高', '中-高', '中', '低', '极低'];
+
+function boostConfidence(conf, steps) {
+  if (steps === undefined) steps = 1;
+  var idx = CONF_TIERS.indexOf(conf);
+  if (idx === -1 || idx === 0) return conf;
+  return CONF_TIERS[Math.max(0, idx - steps)];
+}
+
+function downgradeConfidence(conf, steps) {
+  if (steps === undefined) steps = 1;
+  var idx = CONF_TIERS.indexOf(conf);
+  if (idx === -1 || idx === CONF_TIERS.length - 1) return conf;
+  return CONF_TIERS[Math.min(CONF_TIERS.length - 1, idx + steps)];
+}
+
+function detectBigEyeStrongTrend(bigEye) {
+  if (bigEye.length < 5) return null;
+  var last5 = bigEye.slice(-5);
+  if (last5.every(function(d) { return d === 'R'; })) {
+    return { beCount: last5.length };
+  }
+  return null;
+}
+
+function detectBigEyeWeakTrend(bigEye) {
+  if (bigEye.length < 5) return null;
+  var last5 = bigEye.slice(-5);
+  if (last5.every(function(d) { return d === 'B'; })) {
+    return { beCount: last5.length };
+  }
+  return null;
+}
+
+function detectThreeRoadDivergence(bigEye, small, cockroach, prevLevel) {
+  if (bigEye.length < 2 || small.length < 2 || cockroach.length < 2) return null;
+  var bePrev = bigEye[bigEye.length - 2], beLast = bigEye[bigEye.length - 1];
+  var smPrev = small[small.length - 2], smLast = small[small.length - 1];
+  var crPrev = cockroach[cockroach.length - 2], crLast = cockroach[cockroach.length - 1];
+  // 前一位是否都相同（三路同色）
+  var wasSame = (bePrev === smPrev && smPrev === crPrev);
+  // 当前是否不同（出现了分歧）
+  var nowDiff = (beLast !== smLast || smLast !== crLast);
+  if (wasSame && nowDiff) {
+    // 收集之前的颜色
+    var prevColor = bePrev;
+    return { previousColor: prevColor };
+  }
+  return null;
+}
+
+function detectShortTermTop(bigEye, small) {
+  if (bigEye.length < 2 || small.length < 1) return null;
+  var bePrev = bigEye[bigEye.length - 2];
+  var beLast = bigEye[bigEye.length - 1];
+  var smLast = small[small.length - 1];
+  if (bePrev === 'R' && beLast === 'B' && smLast === 'B') {
+    return { beTransition: 'R_to_B', smallLast: 'B' };
+  }
+  return null;
+}
+
+function detectRedRateShift(bigEye, small, cockroach) {
+  if (bigEye.length < 8) return null;
+  var bePrior4 = bigEye.slice(-8, -4);
+  var beRecent4 = bigEye.slice(-4);
+  var priorRed = bePrior4.filter(function(d) { return d === 'R'; }).length / 4;
+  var recentRed = beRecent4.filter(function(d) { return d === 'R'; }).length / 4;
+  var delta = recentRed - priorRed;
+  if (delta <= -0.3) {
+    return { beRateDelta: delta, direction: 'weakening' };
+  }
+  if (delta >= 0.3) {
+    return { beRateDelta: delta, direction: 'strengthening' };
+  }
+  return null;
+}
+
+function analyzeThreeRoadPatterns(road) {
+  var tr = calculateThreeRoads(road);
+  if (tr.colCount < 5) {
+    return { signals: [], verdict: { level: 'info', label: '三路数据不足', totalRed: 1.5 }, riskLevel: 'normal' };
+  }
+  var be = tr.bigEye, sm = tr.small, cr = tr.cockroach;
+  if (be.length < 2 || sm.length < 2 || cr.length < 2) {
+    return { signals: [], verdict: { level: 'info', label: '三路数据不足', totalRed: 1.5 }, riskLevel: 'normal' };
+  }
+
+  var signals = [];
+  var prevLevel = state.threeRoadState.lastVerdictLevel;
+
+  // 检测大眼路5+连红（趋势极强确认）
+  var strongTrend = detectBigEyeStrongTrend(be);
+  if (strongTrend) {
+    var nr = road.filter(function(x) { return x !== 'T'; });
+    var dir = nr[nr.length - 1];
+    signals.push({ type: 'three_road_confirm', direction: dir, beCount: strongTrend.beCount });
+  }
+
+  // 检测大眼路5+连蓝（趋势极弱警告）
+  var weakTrend = detectBigEyeWeakTrend(be);
+  if (weakTrend) {
+    var nr = road.filter(function(x) { return x !== 'T'; });
+    var dir = nr[nr.length - 1];
+    signals.push({ type: 'three_road_warning', direction: dir, beCount: weakTrend.beCount });
+  }
+
+  // 检测三路从同色转分歧（趋势可能反转）
+  var divergence = detectThreeRoadDivergence(be, sm, cr, prevLevel);
+  if (divergence) {
+    signals.push({ type: 'three_road_divergence' });
+  }
+
+  // 检测短期见顶信号（大眼R→B + 小路B）
+  var topSignal = detectShortTermTop(be, sm);
+  if (topSignal) {
+    signals.push({ type: 'three_road_top_signal' });
+  }
+
+  // 检测红率大幅变化
+  var shiftSignal = detectRedRateShift(be, sm, cr);
+  if (shiftSignal) {
+    signals.push({ type: 'three_road_shift', beRateDelta: shiftSignal.beRateDelta, direction: shiftSignal.direction });
+  }
+
+  // 计算 verdict（复用已有的 analyzeThreeRoads 逻辑）
+  var verdict = analyzeThreeRoads(tr);
+
+  // 计算 riskLevel
+  var riskLevel = 'normal';
+  if (verdict.level === 'weak') {
+    riskLevel = (prevLevel === 'weak') ? 'suspended' : 'reduced';
+  } else if (verdict.level === 'caution') {
+    riskLevel = 'reduced';
+  }
+
+  // 收集 warningTypes
+  var warningTypes = [];
+  if (weakTrend) warningTypes.push('be_weak_' + weakTrend.beCount);
+  if (divergence) warningTypes.push('divergence');
+  if (topSignal) warningTypes.push('top_signal');
+  if (riskLevel === 'reduced') warningTypes.push('risk_reduced');
+  if (riskLevel === 'suspended') warningTypes.push('risk_suspended');
+
+  // 更新 threeRoadState
+  state.threeRoadState.verdictHistory.push({
+    level: verdict.level, label: verdict.label, totalRed: verdict.totalRed
+  });
+  if (state.threeRoadState.verdictHistory.length > 6) {
+    state.threeRoadState.verdictHistory.shift();
+  }
+  state.threeRoadState.lastVerdictLevel = verdict.level;
+  state.threeRoadState.riskLevel = riskLevel;
+  state.threeRoadState.warningTypes = warningTypes;
+
+  // 振荡检测：最后3次在 strong/weak 间跳转 → 强制 neutral
+  var hist = state.threeRoadState.verdictHistory;
+  if (hist.length >= 3) {
+    var last3 = hist.slice(-3);
+    var hasStrong = last3.some(function(h) { return h.level === 'strong'; });
+    var hasWeak = last3.some(function(h) { return h.level === 'weak'; });
+    if (hasStrong && hasWeak) {
+      // 振荡中 → 不调节
+      return { signals: signals, verdict: verdict, riskLevel: 'normal' };
+    }
+  }
+
+  return { signals: signals, verdict: verdict, riskLevel: riskLevel };
+}
+
+function applyThreeRoadConfidenceModifiers(suggestions, threeRoadResult, road) {
+  if (!threeRoadResult || threeRoadResult.signals.length === 0) return suggestions;
+  var verdict = threeRoadResult.verdict;
+  if (!verdict || verdict.level === 'info') return suggestions;
+
+  var nr = road.filter(function(x) { return x !== 'T'; });
+  var lastResult = nr[nr.length - 1];
+
+  // 检查是否有三路信号覆盖方向的信号
+  var hasConfirm = threeRoadResult.signals.some(function(s) { return s.type === 'three_road_confirm'; });
+  var hasWarning = threeRoadResult.signals.some(function(s) { return s.type === 'three_road_warning'; });
+
+  for (var si = 0; si < suggestions.length; si++) {
+    var s = suggestions[si];
+    if (s.action !== 'B' && s.action !== 'P') continue;
+    var aligns = (s.action === lastResult);
+
+    if (verdict.level === 'strong' && aligns) {
+      s.confidence = boostConfidence(s.confidence, 1);
+      if (hasConfirm) s.confidence = boostConfidence(s.confidence, 1);
+    } else if (verdict.level === 'good' && aligns && si === 0) {
+      s.confidence = boostConfidence(s.confidence, 1);
+    } else if (verdict.level === 'caution' && aligns) {
+      if (si === 0) s.confidence = downgradeConfidence(s.confidence, 1);
+    } else if (verdict.level === 'weak') {
+      s.confidence = downgradeConfidence(s.confidence, 1);
+      if (hasWarning) s.confidence = downgradeConfidence(s.confidence, 1);
+    }
+  }
+
+  return suggestions;
+}
+
+function applyThreeRoadRiskAdjustment(suggestions, threeRoadResult) {
+  if (!threeRoadResult || threeRoadResult.riskLevel === 'normal') {
+    return { suggestions: suggestions, betSizeMultiplier: 1.0 };
+  }
+  if (threeRoadResult.riskLevel === 'reduced') {
+    if (suggestions.length > 0 && suggestions[0]) {
+      suggestions[0].title += ' 🟡三路避险-半注';
+    }
+    return { suggestions: suggestions, betSizeMultiplier: 0.5 };
+  }
+  if (threeRoadResult.riskLevel === 'suspended') {
+    if (suggestions.length > 0 && suggestions[0]) {
+      suggestions[0].title += ' 🔴三路弱势-建议暂停';
+    }
+    return { suggestions: suggestions, betSizeMultiplier: 1.0 }; // 注码不减半，但显示警告
+  }
+  return { suggestions: suggestions, betSizeMultiplier: 1.0 };
 }
 
 // ============================================================
@@ -2902,7 +4367,8 @@ function renderAlerts() {
 
     // 每日亏损上限
     const dailyLoss = state.settings.dailyLossLimit;
-    if (dailyLoss > 0 && state.dailyStats.totalPL <= -dailyLoss) {
+    const dailyTotal = state.dailyStats.totalPL + (state.sessionStats.profitLoss || 0);
+    if (dailyLoss > 0 && dailyTotal <= -dailyLoss) {
       if (shouldLock) { state._renderingAlerts = false; lockSystem('daily_loss'); return; }
       else msgs.push({ icon: '🔴', text: '📉 已达日亏损上限(' + dailyLoss.toLocaleString() + ')，建议明日再战（硬锁定已关闭，请自律）' });
     }
@@ -2917,10 +4383,11 @@ function renderAlerts() {
     }
   }
 
-  // 7. 提示今日盈亏状态
-  if (state.dailyStats.totalPL !== 0) {
-    const sign = state.dailyStats.totalPL > 0 ? '+' : '';
-    msgs.push({ icon: '📊', text: '📊 今日累计: ' + sign + state.dailyStats.totalPL.toLocaleString() });
+  // 7. 提示今日盈亏状态（含当前会话）
+  const dailyTotalMsg = state.dailyStats.totalPL + (state.sessionStats.profitLoss || 0);
+  if (dailyTotalMsg !== 0) {
+    const sign = dailyTotalMsg > 0 ? '+' : '';
+    msgs.push({ icon: '📊', text: '📊 今日累计: ' + sign + dailyTotalMsg.toLocaleString() });
   }
 
   if (msgs.length > 0 && !state.alertsCleared) {
@@ -2944,6 +4411,11 @@ function dismissAlert() {
 function renderHeaderTimer() {
   const el = document.getElementById('headerTimer');
   if (!el) return;
+  // 无路单数据时不显示计时
+  if (state.road.length === 0) {
+    el.textContent = '';
+    return;
+  }
   // 显示时间限制倒计时
   const timeLimit = state.settings.timeLimit;
   if (timeLimit > 0 && !state.locked) {
@@ -2971,28 +4443,22 @@ function renderHeaderTimer() {
 // 负追分枪追踪
 // ============================================================
 
-// 哪些策略使用负追，最大几枪
-var CHASE_CONFIG = {
-  '长龙回头不过3': { maxGuns: 3, label: '负追3枪' },
-  '三一式打法': { maxGuns: 2, label: '负追2枪' },
-  '一四式三角形': { maxGuns: 4, label: '逐级负追4步' },
-  '单跳长龙不过3': { maxGuns: 3, label: '负追3枪' },
-  '小三打法': { maxGuns: 3, label: '负追3把' },
-  '锯齿型打法': { maxGuns: 3, label: '负追3枪' },
-  'M型打法': { maxGuns: 2, label: '负追2把' },
-  '斩龙/三断长龙': { maxGuns: 3, label: '负追3枪' },
-  '交叉性组合打法': { maxGuns: 2, label: '负追2枪' },
-  '双跳狙击型': { maxGuns: 3, label: '负追3枪' },
-  '长龙回头龙尾跳': { maxGuns: 3, label: '负追3枪' },
-  '大三打法': { maxGuns: 2, label: '负追2枪' }
-};
-
+// 哪些策略使用负追，最大几枪（从 StrategyRegistry 自动派生，见上方）
 function getChaseConfig(strategyName) {
   return CHASE_CONFIG[strategyName] || null;
 }
 
 function isNegativeProgressionStrategy(strategyName) {
   return !!getChaseConfig(strategyName);
+}
+
+// 检查策略是否在负追冷却期（全输后N手内不重复推荐）
+function isChaseCooling(strategyName) {
+  if (!state.chaseCompleted || !state.chaseCompleted[strategyName]) return false;
+  var completedRound = state.chaseCompleted[strategyName];
+  var currentRound = state.road.length || 0;
+  var cooldown = 5; // 冷却5手
+  return (currentRound - completedRound) < cooldown;
 }
 
 function resetChase() {
@@ -3016,6 +4482,11 @@ function startOrContinueChase(strategyName, direction) {
       maxGuns: config.maxGuns,
       roundStarted: state.road.length + 1
     };
+  }
+
+  // 所有枪数用完 → 标记该策略负追完成，进入冷却
+  if (state.chaseState.gunsUsed >= state.chaseState.maxGuns) {
+    state.chaseCompleted[strategyName] = (state.road.length || 0) + 1;
   }
 }
 
@@ -3138,11 +4609,26 @@ function startLiveMode() {
   renderAll();
 }
 
+// 每手下注额自定义
+function updateBetOverride(val) {
+  state.currentBetOverride = parseInt(val) || 0;
+}
+
+// 照打：一键点击系统推荐的按钮
+function quickFollow() {
+  const analysis = _cachedAnalysis || analyze();
+  if (analysis.betAdvice && analysis.betAdvice.action) {
+    addResult(analysis.betAdvice.action, analysis);
+  } else {
+    alert('当前无推荐方向');
+  }
+}
+
 // ============================================================
 // 会话日志系统
 // ============================================================
 
-function addResult(type) {
+function addResult(type, _prevAnalysis) {
   // 检查锁定状态
   if (state.locked) {
     alert('🔒 系统已锁定，请先解锁或等待冷却结束');
@@ -3175,7 +4661,7 @@ function addResult(type) {
   // ========== 实战模式：以下全部是正常追踪逻辑 ==========
 
   // 记录本次结果前的推荐（用于失败追踪 + 复盘日志）
-  const prevAnalysis = analyze();
+  const prevAnalysis = _prevAnalysis || analyze();
   const prevAdvice = prevAnalysis.betAdvice;
 
   // 计算本次推荐注码
@@ -3184,7 +4670,7 @@ function addResult(type) {
   if (prevAdvice) {
     const tier = confToTier(prevAdvice.confidence, prevAdvice.strategy);
     tierInfo = tier;
-    recommendedBet = Math.round(state.capital * tier.pct);
+    recommendedBet = Math.round(state.capital * tier.pct * (prevAnalysis.betSizeMultiplier || 1.0));
   }
 
   // 提取当前路况信号（用于复盘条件分析）
@@ -3225,7 +4711,7 @@ function addResult(type) {
       activeStrategyConfidence = csFound.confidence;
       var csTier = confToTier(csFound.confidence, csFound.name);
       tierInfo = csTier;
-      recommendedBet = Math.round(state.capital * csTier.pct);
+      recommendedBet = Math.round(state.capital * csTier.pct * (prevAnalysis.betSizeMultiplier || 1.0));
     } else {
       usingCustomStrategy = false;
     }
@@ -3237,24 +4723,25 @@ function addResult(type) {
     activeStrategyConfidence = prevAdvice.confidence;
   }
 
-  // 检测用户覆盖：系统有推荐但用户点击了不同方向 → 不计入策略统计
-  var isUserOverride = !usingCustomStrategy && prevAdvice && type !== 'T' && type !== prevAdvice.action;
-  if (isUserOverride) {
-    // 用户自行选择，不拉低策略胜率
-    activeStrategyName = null;
-    activeStrategyAction = null;
-    activeStrategyConfidence = null;
-  }
+  // 检测用户覆盖：系统有推荐但用户可能选择下反方向
+  // 注意：由于结果按钮同时记录开牌结果，无法区分"跟推荐输了"和"反推荐赢了"
+  // 统一按"跟随推荐"处理，确保盈亏计算正确（输赢由结果与推荐方向是否一致决定）
+  var isUserOverride = false;
 
   // 构造推荐信息（用于日志，即使被覆盖也保留原始推荐）
   var logRecommendation = null;
+  var actualBetAmount = recommendedBet; // 实际下注额，可在输入框自定义
+  if (state.currentBetOverride > 0) {
+    actualBetAmount = Math.min(state.currentBetOverride, state.capital);
+  }
+
   if (usingCustomStrategy && activeStrategyName) {
     // 自定义策略（isUserOverride=false时才有activeStrategyName）
     logRecommendation = {
       strategy: activeStrategyName,
       confidence: activeStrategyConfidence,
       action: activeStrategyAction,
-      betAmount: recommendedBet,
+      betAmount: actualBetAmount,
       tier: tierInfo ? tierInfo.label : null,
       isCustom: true
     };
@@ -3264,69 +4751,110 @@ function addResult(type) {
       strategy: prevAdvice.strategy,
       confidence: prevAdvice.confidence,
       action: prevAdvice.action,
-      betAmount: recommendedBet,
+      betAmount: actualBetAmount,
       tier: tierInfo ? tierInfo.label : null,
       isCustom: false,
       isUserOverride: isUserOverride
     };
   }
 
-  // 记录当前负追枪数
-  var chaseGunNumber = (state.chaseState && state.chaseState.strategy === (activeStrategyName || (prevAdvice ? prevAdvice.strategy : null))) ? state.chaseState.gunsUsed : null;
+  // 记录当前负追枪数（当前正在打的枪号 = 已用枪数 + 1，用户覆盖时不记录）
+  var chaseGunNumber = null;
+  if (!isUserOverride) {
+    if (state.chaseState && activeStrategyName && state.chaseState.strategy === activeStrategyName) {
+      chaseGunNumber = state.chaseState.gunsUsed + 1;
+    } else if (activeStrategyName && getChaseConfig(activeStrategyName)) {
+      chaseGunNumber = 1;
+    }
+  }
+
+  // --- 读取点数输入（如有） ---
+  var ptBkInput = document.getElementById('inputBankerPoint');
+  var ptPlInput = document.getElementById('inputPlayerPoint');
+  var chkBkDr = document.getElementById('chkBankerDrew');
+  var chkPlDr = document.getElementById('chkPlayerDrew');
+  var bankerPoint = ptBkInput && ptBkInput.value !== '' ? parseInt(ptBkInput.value) : null;
+  var playerPoint = ptPlInput && ptPlInput.value !== '' ? parseInt(ptPlInput.value) : null;
+  var bankerDrew = chkBkDr ? chkBkDr.checked : false;
+  var playerDrew = chkPlDr ? chkPlDr.checked : false;
+  // 清除点数输入（每手重置）
+  if (ptBkInput) ptBkInput.value = '';
+  if (ptPlInput) ptPlInput.value = '';
+  if (chkBkDr) chkBkDr.checked = false;
+  if (chkPlDr) chkPlDr.checked = false;
 
   // 记录日志：下注前的快照
   const logEntry = {
     timestamp: Date.now(),
     roundIndex: state.road.length + 1,
-    roadSnapshot: JSON.stringify(state.road),
     recommendation: logRecommendation,
     userFollowed: null,
     actualResult: type,
     profitImpact: 0,
     gunNumber: chaseGunNumber, // 负追第几枪
+    bankerPoint: bankerPoint,   // 庄点数（可选）
+    playerPoint: playerPoint,   // 闲点数（可选）
+    bankerDrew: bankerDrew,     // 庄是否补牌
+    playerDrew: playerDrew,     // 闲是否补牌
     conditions: {
       hasDoubleDragon: hasDD,
       hasGoldenFinger: hasGF,
-      signals: roadSignals
+      signals: roadSignals,
+      threeRoad: prevAnalysis.threeRoadResult ? {
+        verdict: prevAnalysis.threeRoadResult.verdict,
+        riskLevel: prevAnalysis.threeRoadResult.riskLevel,
+        warningTypes: state.threeRoadState.warningTypes,
+        signalTypes: prevAnalysis.threeRoadResult.signals.map(function(s) { return s.type; })
+      } : null
     },
     isPreload: !state.isLiveMode  // 标记是否为铺牌手
   };
 
   state.road.push(type);
 
+  // 使用实际下注额（如果用户自定义了则用自定义值，否则用推荐注码）
+  var usedBet = state.currentBetOverride > 0 ? Math.min(state.currentBetOverride, state.capital) : recommendedBet;
+  // 清除自定义下注额（每手重置，用户需重新输入）
+  state.currentBetOverride = 0;
+
   // 计算盈利影响（和局不计胜负）
-  var isWin = false; // 提前声明，所有路径都有明确值
+  var isWin = false; // 策略预测准确率（用于策略统计/滚动WR）
   if (type === 'T') {
     state.sessionStats.roundsTied++;
     logEntry.profitImpact = 0;
     logEntry.userFollowed = false;
   } else if (activeStrategyName && activeStrategyAction) {
-    // 用户跟随了系统推荐或使用了自定义策略
-    isWin = activeStrategyAction === type;
-    if (isWin) {
-      const winAmount = type === 'P' ? recommendedBet : Math.round(recommendedBet * 0.95);
+    if (isUserOverride) {
+      // 用户覆盖推荐：type同时记录投注方向和开牌结果，方向=结果必赢
+      // 策略统计不更新（策略未被遵循），只记录盈亏
+      isWin = true;
+      logEntry.userFollowed = false;
+      const winAmount = type === 'P' ? usedBet : Math.round(usedBet * 0.95);
       logEntry.profitImpact = winAmount;
       state.sessionStats.roundsWon++;
     } else {
-      logEntry.profitImpact = -recommendedBet;
-      state.sessionStats.roundsLost++;
+      // 跟推荐：结果=推荐方向则策略预测正确
+      isWin = activeStrategyAction === type;
+      logEntry.userFollowed = true;
+      if (isWin) {
+        const winAmount = type === 'P' ? usedBet : Math.round(usedBet * 0.95);
+        logEntry.profitImpact = winAmount;
+        state.sessionStats.roundsWon++;
+      } else {
+        logEntry.profitImpact = -usedBet;
+        state.sessionStats.roundsLost++;
+      }
     }
-    logEntry.userFollowed = true;
   } else {
-    // 无推荐 或 用户覆盖了系统推荐
-    state.sessionStats.roundsLost++;
-    // 实战模式：一律追踪盈亏（有推荐用推荐注码，无推荐用最低档3%）
-    if (state.isLiveMode) {
-      var betAmt = recommendedBet > 0 ? recommendedBet : Math.round(state.capital * 0.03);
-      logEntry.profitImpact = -betAmt;
-    } else {
-      logEntry.profitImpact = 0;
-    }
+    // 无推荐或无操作建议（如观望）：不强制记录输赢
+    logEntry.profitImpact = 0;
     logEntry.userFollowed = false;
   }
 
-  // --- 负追分枪管理 ---
+  // --- 负追分枪管理（用户覆盖时跳过负追追踪） ---
   if (type !== 'T' && activeStrategyName && isNegativeProgressionStrategy(activeStrategyName) && !isUserOverride) {
+    // 保存负追快照用于undo恢复
+    logEntry._chaseSnapshot = state.chaseState ? JSON.parse(JSON.stringify(state.chaseState)) : null;
     // 当前是跟随负追策略的投注
     var currentGun = state.chaseState ? state.chaseState.gunsUsed + 1 : 1;
     if (isWin) {
@@ -3341,10 +4869,18 @@ function addResult(type) {
   } else if (type !== 'T' && activeStrategyName && !isUserOverride) {
     // 非负追策略或自定义策略 → 清除之前的负追状态
     resetChase();
+  } else if (isUserOverride && state.chaseState) {
+    // 用户覆盖推荐 → 清除活跃负追状态，避免悬空
+    resetChase();
   }
 
-  // 更新策略统计数据（仅当用户跟随推荐或使用自定义策略时）
-  if (activeStrategyName && type !== 'T') {
+  // 保存失败计数快照（用于undo恢复）
+  if (activeStrategyName && type !== 'T' && !isUserOverride) {
+    logEntry._strategyFailuresBefore = state.strategyFailures[activeStrategyName] != null ? state.strategyFailures[activeStrategyName] : 0;
+  }
+
+  // 更新策略统计数据（仅当用户跟随推荐时；覆盖推荐不更新策略统计）
+  if (activeStrategyName && type !== 'T' && !isUserOverride) {
     const sKey = activeStrategyName;
     if (!state.sessionStats.strategyStats[sKey]) {
       state.sessionStats.strategyStats[sKey] = { wins: 0, losses: 0, count: 0 };
@@ -3374,7 +4910,7 @@ function addResult(type) {
   }
 
   // 追踪流水和抽水
-  var betAmt = recommendedBet || 0;
+  var betAmt = actualBetAmount || 0;
   if (type !== 'T' && betAmt > 0) {
     state.sessionStats.turnover = (state.sessionStats.turnover || 0) + betAmt;
     if (type === 'B') {
@@ -3390,6 +4926,19 @@ function addResult(type) {
   state.sessionStats.profitLoss += logEntry.profitImpact;
   state.capital += logEntry.profitImpact;
   if (state.capital < 0) state.capital = 0;
+
+  // 本金归零时，发出警示并自动切换到观摩模式（仍可记录路单，但不追踪盈亏）
+  if (state.capital <= 0 && state.isLiveMode) {
+    state.capital = 0;
+    state.isLiveMode = false; // 真正切换到观摩模式
+    // 只提示一次
+    if (!state._bustAlertShown) {
+      state._bustAlertShown = true;
+      setTimeout(function() {
+        alert('💰 本金已归零！系统已切换到观摩模式，仍可记录路单分析策略，如需继续请补充资金。');
+      }, 100);
+    }
+  }
 
   renderAll();
   // 滚动到最新
@@ -3439,6 +4988,10 @@ function undoResult() {
         if (wasWin) ss.wins = Math.max(0, ss.wins - 1);
         else ss.losses = Math.max(0, ss.losses - 1);
       }
+      // 恢复失败计数（从快照恢复）
+      if (lastLog._strategyFailuresBefore != null) {
+        state.strategyFailures[sKey] = lastLog._strategyFailuresBefore;
+      }
     }
 
     // 恢复流水/抽水追踪
@@ -3455,27 +5008,31 @@ function undoResult() {
       }
     }
 
-    // 恢复负追状态到前一枪
-    if (state.chaseState && lastLog.gunNumber) {
+    // 恢复负追状态（从日志中的快照恢复，支持undo赢了之后的场景）
+    if (lastLog._chaseSnapshot) {
+      state.chaseState = JSON.parse(JSON.stringify(lastLog._chaseSnapshot));
+    } else if (state.chaseState && lastLog.gunNumber) {
       var chaseKey = state.chaseState.strategy;
       // 如果撤销的手属于当前负追策略，退回一枪
       if (lastLog.recommendation && lastLog.recommendation.strategy === chaseKey) {
         state.chaseState.gunsUsed = Math.max(0, state.chaseState.gunsUsed - 1);
         if (state.chaseState.gunsUsed === 0) {
-          resetChase(); // 已退回第0枪，结束负追
-        }
-        // 恢复分枪统计
-        var gunStatKey = 'gun' + (lastLog.gunNumber || 1);
-        if (state.chaseStats[chaseKey] && state.chaseStats[chaseKey][gunStatKey]) {
-          var gs = state.chaseStats[chaseKey][gunStatKey];
-          gs.count = Math.max(0, gs.count - 1);
-          if (lastLog.profitImpact > 0) gs.wins = Math.max(0, gs.wins - 1);
-          else gs.losses = Math.max(0, gs.losses - 1);
-          if (gs.count === 0) delete state.chaseStats[chaseKey][gunStatKey];
+          resetChase();
         }
       } else {
-        // 撤销的手不属于当前负追策略 → 重置
         resetChase();
+      }
+    }
+    // 恢复分枪统计
+    if (lastLog.gunNumber && lastLog.recommendation) {
+      var gunStatKey = 'gun' + (lastLog.gunNumber || 1);
+      var chaseKey2 = lastLog.recommendation.strategy;
+      if (state.chaseStats[chaseKey2] && state.chaseStats[chaseKey2][gunStatKey]) {
+        var gs = state.chaseStats[chaseKey2][gunStatKey];
+        gs.count = Math.max(0, gs.count - 1);
+        if (lastLog.profitImpact > 0) gs.wins = Math.max(0, gs.wins - 1);
+        else gs.losses = Math.max(0, gs.losses - 1);
+        if (gs.count === 0) delete state.chaseStats[chaseKey2][gunStatKey];
       }
     }
   }
@@ -3504,7 +5061,7 @@ function endSession(confirmAction) {
     chaseStats: JSON.parse(JSON.stringify(state.chaseStats)),
     initCapital: state.initCapital,
     finalCapital: state.capital,
-    profitLoss: state.capital - state.initCapital,
+    profitLoss: state.sessionStats.profitLoss,
     preloadCount: state.preloadCount,
     isLiveMode: state.isLiveMode,
     settings: JSON.parse(JSON.stringify(state.settings))
@@ -3517,6 +5074,12 @@ function endSession(confirmAction) {
   state.dailyStats.sessionsCount++;
   state.dailyStats.date = new Date().toISOString().slice(0,10);
 
+  // 返水自动结算：流水 × 返水率
+  var rebateAmount = Math.round((state.sessionStats.turnover || 0) * (state.settings.rebateRate || 0.008));
+  if (rebateAmount > 0) {
+    state.capital += rebateAmount;
+  }
+
   // 重置当前会话
   state.road = [];
   state.sessionLog = [];
@@ -3526,6 +5089,7 @@ function endSession(confirmAction) {
   state.sessionStart = Date.now();
   state.alertsCleared = false;
   state.strategyFailures = {};
+  state.strategyRecentResults = {};
   state.locked = false;
   state.lockReason = null;
   state.preloadCount = 0;
@@ -3533,6 +5097,7 @@ function endSession(confirmAction) {
   state.lockUntil = null;
   state.coolDownUntil = null;
   resetChase();
+  state.chaseCompleted = {};
 
   renderAll();
   if (confirmAction !== false) {
@@ -3670,6 +5235,7 @@ function openReview() {
       html += '<span id="rankTabProfit" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'profit\')">💰 盈利排名</span>';
       html += '<span id="rankTabCalibrate" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'calibrate\')">🎯 信心校准</span>';
       html += '<span id="rankTabTrend" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'trend\')">📈 趋势&条件</span>';
+      html += '<span id="rankTabChase" class="btn btn-sm" style="background:#2d2d44;color:#aaa;font-size:10px;padding:3px 8px;" onclick="switchReviewTab(\'chase\')">🔫 分枪统计</span>';
       html += '</div>';
 
       // ===== Tab 1: 胜率排名 =====
@@ -3877,6 +5443,13 @@ function openReview() {
       html += '<div style="margin-top:4px;font-size:10px;color:#666;">💡 条件分析需要日志中记录了路况信号，新记录的数据会自动包含</div>';
       html += '</div></div>'; // end Tab 4
 
+      // ===== Tab 5: 负追分枪统计 (在下方JS构建) =====
+      html += '<div id="reviewTabChase" style="display:none;">';
+      html += '<div style="font-size:12px;font-weight:bold;color:#ff6b9d;margin-bottom:4px;">🔫 负追分枪统计</div>';
+      html += '<div style="max-height:200px;overflow-y:auto;" id="chaseStatsContainer">';
+      html += '<div style="font-size:11px;color:#888;padding:4px 0;">正在加载...</div>';
+      html += '</div></div>'; // end Tab 5
+
       // ===== 分析建议 =====
       const best = ranked[0];
       if (best && best.winRate >= 60) {
@@ -3927,6 +5500,56 @@ function openReview() {
 
   document.getElementById('modalBody').innerHTML = html;
   modal.classList.add('show');
+  // 延迟填充分枪统计（等DOM渲染完成）
+  setTimeout(populateChaseStats, 50);
+}
+
+function populateChaseStats() {
+  var container = document.getElementById('chaseStatsContainer');
+  if (!container) return;
+  // 合并所有会话的分枪数据
+  var merged = {};
+  function mergeChase(src) {
+    if (!src) return;
+    for (var sk in src) {
+      if (!src.hasOwnProperty(sk)) continue;
+      if (!merged[sk]) merged[sk] = {};
+      for (var gk in src[sk]) {
+        if (!src[sk].hasOwnProperty(gk)) continue;
+        if (!merged[sk][gk]) merged[sk][gk] = { wins: 0, losses: 0, count: 0 };
+        merged[sk][gk].wins += src[sk][gk].wins || 0;
+        merged[sk][gk].losses += src[sk][gk].losses || 0;
+        merged[sk][gk].count += src[sk][gk].count || 0;
+      }
+    }
+  }
+  var sessions = state.completedSessions || [];
+  for (var i = 0; i < sessions.length; i++) mergeChase(sessions[i].chaseStats);
+  mergeChase(state.chaseStats);
+  var names = Object.keys(merged);
+  if (names.length === 0) {
+    container.innerHTML = '<div style="font-size:11px;color:#888;padding:4px 0;">暂无负追分枪数据，使用负追策略后自动记录</div>';
+    return;
+  }
+  var h = '<div style="display:grid;grid-template-columns:3fr 1.5fr 1fr 1fr;gap:2px;padding:3px 6px;font-size:10px;color:#888;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;">';
+  h += '<div>策略</div><div style="text-align:center;">枪数</div><div style="text-align:center;">次数</div><div style="text-align:right;">胜率</div></div>';
+  for (var ni = 0; ni < names.length; ni++) {
+    var nm = names[ni];
+    var guns = merged[nm];
+    var gkeys = Object.keys(guns).sort();
+    for (var gj = 0; gj < gkeys.length; gj++) {
+      var gkn = gkeys[gj];
+      var gd2 = guns[gkn];
+      var gwr = gd2.count > 0 ? (gd2.wins / gd2.count * 100).toFixed(0) : '0';
+      var gclr = parseInt(gwr) >= 50 ? '#4ecca3' : '#e94560';
+      h += '<div style="display:grid;grid-template-columns:3fr 1.5fr 1fr 1fr;gap:2px;padding:2px 6px;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04);">';
+      h += '<div style="color:#e0e0e0;">' + (gj === 0 ? nm : '') + '</div>';
+      h += '<div style="text-align:center;color:#888;">第' + gkn.replace('gun', '') + '枪</div>';
+      h += '<div style="text-align:center;color:#888;">' + gd2.count + '</div>';
+      h += '<div style="text-align:right;color:' + gclr + ';font-weight:bold;">' + gwr + '%</div></div>';
+    }
+  }
+  container.innerHTML = h;
 }
 
 function showSessionDetail(index) {
@@ -3961,6 +5584,19 @@ function showSessionDetail(index) {
   html += '<div>和: ' + (s.sessionStats.roundsTied || 0) + '</div>';
   html += '<div>命中率: <b>' + wr + '%</b></div>';
   html += '<div>本金: ' + s.initCapital.toLocaleString() + '</div>';
+
+  // 点数数据统计（如有）
+  const ptEntries = s.sessionLog ? s.sessionLog.filter(function(l) { return l.bankerPoint != null && l.playerPoint != null; }) : [];
+  if (ptEntries.length > 0) {
+    const ptTotal = ptEntries.length;
+    var bkPts = 0, plPts = 0;
+    for (var pti = 0; pti < ptEntries.length; pti++) {
+      bkPts += ptEntries[pti].bankerPoint;
+      plPts += ptEntries[pti].playerPoint;
+    }
+    html += '<div>点数: 庄均' + (bkPts/ptTotal).toFixed(1) + ' 闲均' + (plPts/ptTotal).toFixed(1) + ' (' + ptTotal + '手)</div>';
+  }
+
   html += '</div>';
   html += '</div>';
 
@@ -4029,6 +5665,20 @@ function showSessionDetail(index) {
   // --- 三路交叉验证 ---
   if (s.road && s.road.length >= 5) {
     html += renderThreeRoadPanel(s.road);
+  }
+
+  // --- 三路避险触发统计 ---
+  if (s.sessionLog) {
+    var threeRoadEntries = s.sessionLog.filter(function(log) {
+      return log.conditions && log.conditions.threeRoad && log.conditions.threeRoad.riskLevel !== 'normal';
+    });
+    if (threeRoadEntries.length > 0) {
+      var reducedCount = threeRoadEntries.filter(function(log) { return log.conditions.threeRoad.riskLevel === 'reduced'; }).length;
+      var suspendedCount = threeRoadEntries.filter(function(log) { return log.conditions.threeRoad.riskLevel === 'suspended'; }).length;
+      html += '<div style="margin-top:4px;font-size:10px;color:#ffd93d;">';
+      html += '🔍 三路避险触发 ' + reducedCount + '次减注' + (suspendedCount > 0 ? ', ' + suspendedCount + '次暂停建议' : '');
+      html += '</div>';
+    }
   }
 
   // --- 偏差分析：高概率推荐失败 → 为什么没按预期走 ---
@@ -4145,6 +5795,9 @@ function exportSessionReport(index) {
     for (const log of s.sessionLog) {
       const rec = log.recommendation;
       report += '#' + log.roundIndex + ' 出' + (log.actualResult === 'B' ? '庄' : (log.actualResult === 'P' ? '闲' : '和'));
+      if (log.bankerPoint != null && log.playerPoint != null) {
+        report += ' | 庄' + log.bankerPoint + '点 闲' + log.playerPoint + '点' + (log.bankerDrew ? '庄补' : '') + (log.playerDrew ? '闲补' : '');
+      }
       if (rec) {
         report += ' | 推荐:' + rec.strategy + '→' + (rec.action === 'B' ? '庄' : '闲') + '(' + rec.confidence + ')';
         report += ' | 结果:' + (rec.action === log.actualResult ? '✅中' : '❌不中');
@@ -4168,12 +5821,27 @@ function exportSessionReport(index) {
 }
 
 function exportAllData() {
-  const data = {
-    exportVersion: '2.0',
+  var data = {
+    exportVersion: '2.1',
     exportDate: new Date().toISOString(),
     completedSessions: state.completedSessions,
     dailyStats: state.dailyStats,
-    settings: state.settings
+    settings: state.settings,
+    // 当前会话数据（完整恢复用）
+    currentRoad: state.road,
+    currentSessionLog: state.sessionLog,
+    currentSessionStats: state.sessionStats,
+    currentChaseState: state.chaseState,
+    currentChaseCompleted: state.chaseCompleted,
+    // 策略相关
+    customStrategies: state.customStrategies || [],
+    strategyRecentResults: state.strategyRecentResults || {},
+    strategyFailures: state.strategyFailures || {},
+    strategyEnabled: state.strategyEnabled || {},
+    // 资金
+    capital: state.capital,
+    initCapital: state.initCapital,
+    preloadCount: state.preloadCount || 0
   };
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], {type: 'application/json'});
@@ -4195,16 +5863,30 @@ function importAllData() {
     reader.onload = function(ev) {
       try {
         const data = JSON.parse(ev.target.result);
-        if (!data.completedSessions) throw new Error('无效的数据格式');
-        if (!confirm('导入将覆盖现有历史数据（共' + data.completedSessions.length + '个会话），确认？')) return;
+        if (!data.completedSessions && !data.currentRoad) throw new Error('无效的数据格式');
+        var importMsg = '';
+        if (!confirm('导入将覆盖现有数据（历史' + (data.completedSessions || []).length + '个会话' + (data.currentRoad ? '+' + data.currentRoad.length + '手当前路单' : '') + '），确认？')) return;
         state.completedSessions = data.completedSessions || [];
         state.dailyStats = data.dailyStats || defaultDailyStats();
         if (data.settings) {
           state.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
         }
+        // v2.1+ 新增字段：当前会话、策略、资金
+        if (data.currentRoad) { state.road = data.currentRoad; importMsg += '路单(' + data.currentRoad.length + '手) '; }
+        if (data.currentSessionLog) state.sessionLog = data.currentSessionLog;
+        if (data.currentSessionStats) state.sessionStats = data.currentSessionStats;
+        if (data.currentChaseState) state.chaseState = data.currentChaseState;
+        if (data.currentChaseCompleted) state.chaseCompleted = data.currentChaseCompleted;
+        if (data.customStrategies) state.customStrategies = data.customStrategies;
+        if (data.strategyRecentResults) state.strategyRecentResults = data.strategyRecentResults;
+        if (data.strategyFailures) state.strategyFailures = data.strategyFailures;
+        if (data.strategyEnabled) state.strategyEnabled = data.strategyEnabled;
+        if (data.capital != null) state.capital = data.capital;
+        if (data.initCapital != null) state.initCapital = data.initCapital;
+        if (data.preloadCount != null) state.preloadCount = data.preloadCount;
         saveState();
         renderAll();
-        alert('✅ 数据导入成功！共 ' + state.completedSessions.length + ' 个会话');
+        alert('✅ 数据导入成功！共 ' + state.completedSessions.length + ' 个会话' + (importMsg ? ' + ' + importMsg : ''));
       } catch(err) {
         alert('❌ 导入失败：文件格式不正确');
       }
@@ -4212,6 +5894,42 @@ function importAllData() {
     reader.readAsText(file);
   };
   input.click();
+}
+
+async function enableFileStorage() {
+  if (!_fsApiSupported()) {
+    alert('您的浏览器不支持本地文件存储功能。\n请使用 Chrome 或 Edge 浏览器打开此页面。');
+    return;
+  }
+  try {
+    var handle = await window.showSaveFilePicker({
+      suggestedName: 'baccarat-data.json',
+      types: [{ description: 'JSON 数据文件', accept: { 'application/json': ['.json'] } }]
+    });
+    await _storeFileHandle(handle);
+    state._fileStorageEnabled = true;
+    // 立即写入当前数据
+    var data = JSON.parse(JSON.stringify(state));
+    var writable = await handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+    saveState();
+    renderAll();
+    alert('✅ 本地文件存储已启用！\n\n数据将自动保存到：\n' + handle.name + '\n\n清空浏览器缓存也不会丢失数据。');
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      console.warn('启用文件存储失败:', e);
+    }
+  }
+}
+
+async function disableFileStorage() {
+  if (!confirm('确定要取消本地文件存储吗？\n\n之后数据将仅保存在浏览器缓存中。')) return;
+  state._fileStorageEnabled = false;
+  await _clearFileHandle();
+  saveState();
+  renderAll();
+  alert('已切换为浏览器本地存储模式。');
 }
 
 function clearAllData() {
@@ -4225,27 +5943,25 @@ function clearAllData() {
 }
 
 function resetAllData() {
-  if (!confirm('⚠️ 确定要全部重置？此操作将：\n① 清空所有历史会话\n② 清空当前路单\n③ 盈利归零\n④ 资金重置回初始本金')) return;
-  if (!confirm('再次确认：所有数据将永久删除，不可恢复！')) return;
-  state.completedSessions = [];
-  state.dailyStats = defaultDailyStats();
+  if (!confirm('⚠️ 确定要全部重置？此操作将：\n① 清空当前路单\n② 盈利归零\n③ 资金重置回初始本金\n\n✅ 历史会话和策略统计将保留，供复盘分析')) return;
+  if (!confirm('再次确认：当前路单和盈利将被清除，资金回到 ' + state.initCapital.toLocaleString() + '？')) return;
+  // 保留历史会话和策略统计，仅重置当前会话状态
   state.road = [];
   state.sessionLog = [];
   state.sessionStats = {
     roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0
   };
+  state.dailyStats = defaultDailyStats();
   state.capital = state.initCapital;
   state.isLiveMode = false;
   state.preloadCount = 0;
   state.strategyFailures = {};
-  state.strategyRecentResults = {};
   state.chaseState = null;
-  state.chaseStats = {};
   state.selectedCustomStrategy = null;
   state.sessionStart = Date.now();
   state._capitalManuallySet = false;
   renderAll();
-  alert('✅ 已全部重置，盈利归零，资金回到 ' + state.capital.toLocaleString());
+  alert('✅ 已重置！\n资金回到 ' + state.capital.toLocaleString() + '，盈利归零。\n历史会话(' + state.completedSessions.length + '次)和策略统计已保留。');
 }
 
 function clearTestProfit() {
@@ -4381,7 +6097,7 @@ function openSettings() {
 
   // --- 内建策略启停 ---
   html += '<div style="font-size:12px;font-weight:bold;color:#4ecca3;margin-bottom:4px;">📋 策略启停管理</div>';
-  html += '<div style="font-size:10px;color:#888;margin-bottom:6px;">关闭的策略将不再出现在推荐中，适合发现某策略已失效时手动关闭</div>';
+  html += '<div style="font-size:10px;color:#888;margin-bottom:6px;">关闭的策略将不再出现在推荐中，适合发现某策略已失效时手动关闭。<span style="color:#ffd93d;">📝 标注"需手动输入点数"的策略需要在每手牌录入庄闲点数才能触发。</span></div>';
   html += '<div style="max-height:180px;overflow-y:auto;margin-bottom:8px;">';
   // 列出所有内建策略
   const builtinKeys = Object.keys(STRATEGIES);
@@ -4395,11 +6111,15 @@ function openSettings() {
     html += '<label style="font-size:11px;color:#ccc;cursor:pointer;"><input type="checkbox" ' + (isEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + stName.replace(/'/g, "\\'") + '\', this.checked)" style="margin-right:4px;">' + st.name + '</label>';
     // 显示滚动胜率（如果有）
     var sRolling = getRollingWR(stName);
+    var sNote = '';
+    if (stName.indexOf('点数优势') >= 0 || stName.indexOf('6点规则') >= 0 || stName.indexOf('6点庄补死') >= 0) {
+      sNote = ' <span style="font-size:9px;color:#ffd93d;">📝需手动输入点数</span>';
+    }
     if (sRolling !== null) {
       var sColor = sRolling < 0.5 ? '#e94560' : (sRolling >= 0.65 ? '#4ecca3' : '#ffd93d');
-      html += '<span style="font-size:10px;color:' + sColor + ';">近15次' + (sRolling * 100).toFixed(0) + '%</span>';
+      html += '<span style="font-size:10px;color:' + sColor + ';">近15次' + (sRolling * 100).toFixed(0) + '%</span>' + sNote;
     } else {
-      html += '<span style="font-size:10px;color:#666;">暂无数据</span>';
+      html += '<span style="font-size:10px;color:#666;">暂无数据</span>' + sNote;
     }
     html += '</div>';
   }
@@ -4417,8 +6137,8 @@ function openSettings() {
       var csEnabled = state.strategyEnabled[cs.name] !== false;
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(78,204,163,0.1);background:rgba(78,204,163,0.04);border-radius:4px;margin-bottom:2px;">';
       html += '<div style="flex:1;">';
-      html += '<div style="font-size:11px;color:#4ecca3;">' + cs.name + ' <span style="font-size:10px;color:#888;">→ ' + (cs.direction === 'B' ? '👑庄' : '👤闲') + ' · ' + cs.confidence + '</span></div>';
-      html += '<div style="font-size:10px;color:#666;">' + (cs.description || '') + '</div>';
+      html += '<div style="font-size:11px;color:#4ecca3;">' + escapeHtml(cs.name) + ' <span style="font-size:10px;color:#888;">→ ' + (cs.direction === 'B' ? '👑庄' : '👤闲') + ' · ' + cs.confidence + '</span></div>';
+      html += '<div style="font-size:10px;color:#666;">' + escapeHtml(cs.description || '') + '</div>';
       // 显示滚动胜率
       var csr = getRollingWR(cs.name);
       if (csr !== null) {
@@ -4426,7 +6146,7 @@ function openSettings() {
       }
       html += '</div>';
       html += '<div style="display:flex;gap:4px;align-items:center;">';
-      html += '<input type="checkbox" ' + (csEnabled ? 'checked' : '') + ' onchange="toggleStrategy(\'' + cs.name.replace(/'/g, "\\'") + '\', this.checked)" style="width:auto;">';
+      html += '<input type="checkbox" ' + (csEnabled ? 'checked' : '') + ' data-csname="' + cs.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;') + '" onchange="toggleStrategy(this.getAttribute(\'data-csname\'), this.checked)" style="width:auto;">';
       html += '<button class="btn btn-sm" style="background:#2d2d44;color:#e94560;font-size:10px;padding:2px 6px;" onclick="deleteCustomStrategy(' + ci + ')">✕</button>';
       html += '</div>';
       html += '</div>';
@@ -4475,8 +6195,21 @@ function openSettings() {
   html += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
   html += '<button class="btn btn-sm" style="background:#0f3a1e;color:#4ecca3;border:1px solid #4ecca3;" onclick="clearTestProfit()">🧹 清除测试盈利(归零)</button>';
   html += '</div>';
-  html += '<div style="margin-top:10px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;color:#888;">';
-  html += '数据保存于浏览器本地存储，清除浏览器缓存会丢失数据。建议定期导出备份。';
+  // 文件存储状态
+  html += '<div style="margin-top:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;line-height:1.6;">';
+  if (state._fileStorageEnabled) {
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
+    html += '<span style="color:#4ecca3;">💾 文件存储已启用 ✓<br><span style="font-size:10px;color:#888;">数据自动保存到本地文件，清缓存不丢失</span></span>';
+    html += '<button class="btn btn-sm" style="background:#5c1010;color:#fff;font-size:10px;" onclick="disableFileStorage()">取消</button>';
+    html += '</div>';
+  } else if (typeof window.showSaveFilePicker === 'function') {
+    html += '<span style="color:#ffd93d;">⚠️ 当前仅使用浏览器本地存储<br><span style="font-size:10px;color:#888;">清理缓存会导致数据丢失</span></span>';
+    html += '<div style="margin-top:4px;">';
+    html += '<button class="btn btn-sm" style="background:#0f3a1e;color:#4ecca3;border:1px solid #4ecca3;" onclick="enableFileStorage()">💾 启用本地文件存储</button>';
+    html += '</div>';
+  } else {
+    html += '<span style="color:#888;">⚠️ 您的浏览器不支持本地文件存储<br><span style="font-size:10px;color:#666;">请使用 Chrome/Edge，并定期导出备份</span></span>';
+  }
   html += '</div>';
   html += '</div>'; // end tabData
 
@@ -4512,7 +6245,7 @@ function switchSettingTab(tab) {
 }
 
 function switchReviewTab(tab) {
-  const tabs = ['winRate', 'profit', 'calibrate', 'trend'];
+  const tabs = ['winRate', 'profit', 'calibrate', 'trend', 'chase'];
   for (const t of tabs) {
     const tabEl = document.getElementById('reviewTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const btn = document.getElementById('rankTab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -4637,10 +6370,67 @@ document.addEventListener('keydown', function(e) {
 // 初始化
 // ============================================================
 initState();
-renderAll();
 
-// 定时器：每秒刷新倒计时/锁定状态
+// 如果上次启用了文件存储，跳过 localStorage 渲染，等文件数据加载后再渲染（避免闪烁）
+var _hasFileStorage = state._fileStorageEnabled === true && typeof _fsApiSupported === 'function' && _fsApiSupported();
+
+if (!_hasFileStorage) {
+  renderAll();
+}
+
+// 尝试从本地文件恢复数据（优先级高于 localStorage）
+(async function() {
+  if (!_fsApiSupported()) {
+    if (_hasFileStorage) renderAll(); // 文件存储不可用，回退渲染
+    return;
+  }
+  var fileData = await _readFromFile();
+  if (fileData) {
+    // 文件数据更优先，覆盖 localStorage 的初始加载
+    fileData.settings = Object.assign({}, DEFAULT_SETTINGS, fileData.settings || {});
+    fileData.sessionStart = Date.now();
+    fileData.alertsCleared = false;
+    fileData.locked = fileData.locked || false;
+    fileData.lockReason = fileData.lockReason || null;
+    fileData.lockUntil = fileData.lockUntil || null;
+    fileData.coolDownUntil = fileData.coolDownUntil || null;
+    fileData.sessionLog = fileData.sessionLog || [];
+    fileData.completedSessions = fileData.completedSessions || [];
+    fileData.dailyStats = fileData.dailyStats || defaultDailyStats();
+    fileData.sessionStats = fileData.sessionStats || { roundsPlayed: 0, roundsWon: 0, roundsLost: 0, roundsTied: 0, profitLoss: 0, strategyStats: {}, turnover: 0, bankerBetAmount: 0, playerBetAmount: 0, bankerWinAmount: 0 };
+    fileData.strategyRecentResults = fileData.strategyRecentResults || {};
+    fileData.strategyEnabled = fileData.strategyEnabled || {};
+    fileData.customStrategies = fileData.customStrategies || [];
+    fileData.chaseState = fileData.chaseState || null;
+    fileData.chaseStats = fileData.chaseStats || {};
+    fileData.chaseCompleted = fileData.chaseCompleted || {};
+    fileData.selectedCustomStrategy = fileData.selectedCustomStrategy || null;
+    fileData.preloadCount = fileData.preloadCount || 0;
+    fileData.isLiveMode = fileData.isLiveMode || false;
+    fileData.currentBetOverride = fileData.currentBetOverride || 0;
+    fileData._bustAlertShown = fileData._bustAlertShown || false;
+    fileData._capitalManuallySet = fileData._capitalManuallySet || false;
+    fileData._fileStorageEnabled = true;
+    fileData.lastDecisionTrace = fileData.lastDecisionTrace || null;
+    fileData.threeRoadState = fileData.threeRoadState || { verdictHistory: [], lastVerdictLevel: null, riskLevel: 'normal', warningTypes: [] };
+    state = fileData;
+    // 同步到 localStorage 作为备份
+    try { localStorage.setItem('baccarat_state', JSON.stringify(JSON.parse(JSON.stringify(state)))); } catch(e) {}
+    renderAll();
+  } else if (_hasFileStorage) {
+    // 文件读取无数据但之前启用了文件存储，回退渲染 localStorage 数据
+    renderAll();
+  }
+})();
+
+// 定时器：每秒刷新倒计时/锁定状态 + 午夜日期检查
 setInterval(function() {
+  // 午夜自动重置日统计
+  var today = new Date().toISOString().slice(0,10);
+  if (state.dailyStats.date !== today) {
+    state.dailyStats = defaultDailyStats();
+  }
+
   renderHeaderTimer();
   renderAlerts();
   renderLockState();
@@ -4667,6 +6457,11 @@ setInterval(function() {
     }
   }
 }, 1000);
+
+// 页面关闭前保存状态，防止崩溃丢失数据
+window.addEventListener('beforeunload', function() {
+  saveState();
+});
 
 // 当页面准备好时，显示一些指南
 console.log('🃏 Alan|Baccarat实战系统 v2.0 - 复盘版');
